@@ -6,6 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from backend.app.database import init_db
+from backend.app.seed import seed
 from backend.app.routers import auth, user, chart, transit, interpret, journal
 
 app = FastAPI(title="TransitWind", version="0.1.0")
@@ -22,6 +23,7 @@ app.include_router(journal.router)
 @app.on_event("startup")
 def on_startup():
     init_db()
+    seed()
 
 
 # Serve frontend static files (built by Vite)

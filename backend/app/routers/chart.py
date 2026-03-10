@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.auth import get_current_user
 from backend.app.database import get_db
-from backend.app.models import User, NatalChart
+from backend.app.models import User, NatalChart, InterpretationCache
 from backend.app.schemas import BirthDataIn, ChartOut
 from backend.app.services.chart import compute_natal_chart
 
@@ -54,3 +54,20 @@ def get_chart(
     if not natal:
         raise HTTPException(status_code=404, detail="No chart found. Submit birth data first.")
     return ChartOut(**natal.chart_data)
+
+
+@router.delete("")
+def delete_chart(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Delete the user's natal chart and clear interpretation cache."""
+    natal = db.query(NatalChart).filter(NatalChart.user_id == user.id).first()
+    if not natal:
+        raise HTTPException(status_code=404, detail="No chart found")
+
+    # Clear cached interpretations (they're based on natal chart data)
+    db.query(InterpretationCache).filter(InterpretationCache.user_id == user.id).delete()
+    db.delete(natal)
+    db.commit()
+    return {"detail": "Chart deleted"}

@@ -16,15 +16,25 @@ function App() {
 
   useEffect(() => {
     if (authed) {
-      api.getMe()
-        .then(user => {
-          setHasChart(user.has_chart)
-          setLoading(false)
+      // Try to refresh the token on mount to extend the session
+      api.refreshToken()
+        .then(res => {
+          setToken(res.access_token)
         })
         .catch(() => {
-          clearToken()
-          setAuthed(false)
-          setLoading(false)
+          // Token expired or invalid — will be caught by getMe below
+        })
+        .finally(() => {
+          api.getMe()
+            .then(user => {
+              setHasChart(user.has_chart)
+              setLoading(false)
+            })
+            .catch(() => {
+              clearToken()
+              setAuthed(false)
+              setLoading(false)
+            })
         })
     } else {
       setLoading(false)

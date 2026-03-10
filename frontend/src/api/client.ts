@@ -49,7 +49,25 @@ export const api = {
       body: JSON.stringify({ email, password }),
     }),
 
+  refreshToken: () =>
+    request<{ access_token: string }>('/auth/refresh', { method: 'POST' }),
+
   getMe: () => request<{ id: number; email: string; name: string | null; has_chart: boolean }>('/user/me'),
+
+  updateMe: (data: { name?: string; email?: string }) =>
+    request<{ id: number; email: string; name: string | null; has_chart: boolean }>('/user/me', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  changePassword: (oldPassword: string, newPassword: string) =>
+    request<{ detail: string }>('/user/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
+    }),
+
+  deleteAccount: () =>
+    request<{ detail: string }>('/user/me', { method: 'DELETE' }),
 
   // Chart
   createChart: (data: {
@@ -61,6 +79,7 @@ export const api = {
   }) => request<any>('/chart', { method: 'POST', body: JSON.stringify(data) }),
 
   getChart: () => request<any>('/chart'),
+  deleteChart: () => request<any>('/chart', { method: 'DELETE' }),
 
   // Transit
   getCurrentTransit: () => request<any>('/transit/current'),

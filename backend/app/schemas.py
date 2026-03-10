@@ -31,6 +31,16 @@ class UserOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class UserUpdateIn(BaseModel):
+    name: str | None = None
+    email: str | None = None
+
+
+class ChangePasswordIn(BaseModel):
+    old_password: str
+    new_password: str
+
+
 # --- Chart ---
 
 class BirthDataIn(BaseModel):
