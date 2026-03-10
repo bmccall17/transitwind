@@ -24,3 +24,5 @@ Each ADR follows this template:
 | 007 | [AI interpretation caching strategy](007-interpretation-caching.md) | accepted | 2026-03-10 |
 | 008 | [Client-side countdown via target timestamps](008-countdown-timestamps.md) | accepted | 2026-03-10 |
 | 009 | [Path traversal fix — StaticFiles over FileResponse](009-static-files-serving.md) | accepted | 2026-03-10 |
+| 010 | [Stateless token refresh](010-stateless-token-refresh.md) | accepted | 2026-03-10 |
+| 011 | [Test infrastructure with in-memory SQLite](011-test-infrastructure-inmemory-sqlite.md) | accepted | 2026-03-10 |

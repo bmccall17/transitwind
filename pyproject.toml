@@ -1,6 +1,6 @@
 [project]
 name = "transitwind"
-version = "0.1.0"
+version = "0.1.6"
 description = "Personalized Human Design transit interpreter"
 requires-python = ">=3.11"
 dependencies = [

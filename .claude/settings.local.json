@@ -28,7 +28,9 @@
       "Bash(. .venv/bin/activate && python -m pytest backend/tests/test_auth.py::test_token_refresh_valid -v --tb=short 2>&1 | grep -E \"FAILED|assert|AssertionError\")",
       "Bash(. .venv/bin/activate && python -m pytest backend/tests/ -v --tb=short 2>&1 | grep -E \"PASSED|FAILED|===\")",
       "Bash(cd /home/bam/projects/transitwind && . .venv/bin/activate && python -c \"\nfrom backend.app.seed import seed\nfrom backend.app.database import SessionLocal, init_db\n\ninit_db\\(\\)\nseed\\(\\)\n\ndb = SessionLocal\\(\\)\nfrom backend.app.models import User, NatalChart\nuser = db.query\\(User\\).filter\\(User.email == 'bam@transitwind.dev'\\).first\\(\\)\nprint\\(f'User: {user.name} \\({user.email}\\)'\\)\nchart = db.query\\(NatalChart\\).filter\\(NatalChart.user_id == user.id\\).first\\(\\)\nprint\\(f'Chart type: {chart.chart_data[\\\\\"type\\\\\"]}'\\)\nprint\\(f'Chart profile: {chart.chart_data[\\\\\"profile\\\\\"]}'\\)\nprint\\(f'Chart authority: {chart.chart_data[\\\\\"authority\\\\\"]}'\\)\nprint\\(f'Defined gates: {len\\(chart.chart_data[\\\\\"defined_gates\\\\\"]\\)}'\\)\ndb.close\\(\\)\n\")",
-      "Bash(. .venv/bin/activate && python -m pytest backend/tests/ -v 2>&1 | head -80)"
+      "Bash(. .venv/bin/activate && python -m pytest backend/tests/ -v 2>&1 | head -80)",
+      "Bash(cd /home/bam/projects/transitwind && . .venv/bin/activate && python -c \"from backend.app.main import app; print\\('Backend import OK'\\)\" 2>&1)",
+      "Bash(cd /home/bam/projects/transitwind && . .venv/bin/activate && python -m pytest backend/tests/ -v --tb=short 2>&1)"
     ]
   }
 }

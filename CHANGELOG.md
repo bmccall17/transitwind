@@ -3,6 +3,21 @@
 All notable changes to TransitWind are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.1.6] - 2026-03-10
+
+### Added
+- **Test infrastructure** — 22 backend tests (pytest + TestClient + in-memory SQLite) covering auth, user CRUD, and chart CRUD (ADR 011)
+- **Token refresh endpoint** — `POST /api/auth/refresh` reissues JWT from valid token; frontend auto-refreshes on mount (ADR 010)
+- **User profile management** — `PUT /api/user/me` (update name/email), `POST /api/user/change-password`, `DELETE /api/user/me` (cascading delete)
+- **Chart deletion** — `DELETE /api/chart` clears natal chart and interpretation cache
+- **Seed user system** — `backend/app/seed.py` auto-creates user + chart from `.env` vars on startup (idempotent)
+- **Profile UI** — editable name/email fields, change password form, delete chart with confirmation, delete account with confirmation modal
+
+### Changed
+- Frontend `client.ts` — added `refreshToken`, `updateMe`, `changePassword`, `deleteAccount`, `deleteChart` API methods
+- `App.tsx` — token refresh on mount before loading user state
+- `.env.example` — added seed user variable placeholders
+
 ## [1.1.0] - 2026-03-10
 
 ### Added
