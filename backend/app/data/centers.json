@@ -1,0 +1,47 @@
+{
+  "Head": {
+    "defined_theme": "Consistent mental pressure and inspiration; reliable source of questions and wonder",
+    "open_theme": "Amplifies others' mental pressure; wisdom about what is truly worth thinking about",
+    "biological": "Pineal gland"
+  },
+  "Ajna": {
+    "defined_theme": "Consistent way of processing and conceptualizing information; fixed mental awareness",
+    "open_theme": "Flexible thinking and openness to multiple perspectives; wisdom about what is worth being certain about",
+    "biological": "Anterior and posterior pituitary glands"
+  },
+  "Throat": {
+    "defined_theme": "Reliable capacity for communication, expression, and manifestation through action or words",
+    "open_theme": "Flexible expression; wisdom about when and what to speak; attracts attention for communication",
+    "biological": "Thyroid and parathyroid glands"
+  },
+  "G": {
+    "defined_theme": "Consistent sense of identity, direction, and love; reliable inner compass",
+    "open_theme": "Fluid identity and openness to many directions; wisdom about environments and who others truly are",
+    "biological": "Liver and blood"
+  },
+  "Heart": {
+    "defined_theme": "Consistent willpower, drive, and capacity for material commitment; reliable ego strength",
+    "open_theme": "Amplifies willpower of others; wisdom about what is truly worth proving; vulnerability to over-promising",
+    "biological": "Heart, stomach, gall bladder, thymus gland"
+  },
+  "Sacral": {
+    "defined_theme": "Sustainable life force, workforce energy, and sexual-creative power; built for response",
+    "open_theme": "Amplifies sacral energy of others; wisdom about knowing when enough is enough; not designed for sustained work",
+    "biological": "Ovaries and testes"
+  },
+  "Solar Plexus": {
+    "defined_theme": "Emotional wave and depth of feeling; clarity comes over time through emotional process",
+    "open_theme": "Amplifies emotions of others; wisdom about who feels good and who does not; potential to avoid confrontation",
+    "biological": "Kidneys, prostate, pancreas, nervous system (solar plexus)"
+  },
+  "Spleen": {
+    "defined_theme": "Consistent intuitive awareness for survival, health, and well-being; instinctive knowing in the moment",
+    "open_theme": "Amplifies splenic awareness of others; wisdom about what is and is not healthy; tendency to hold on too long",
+    "biological": "Lymphatic system, spleen, T-cells"
+  },
+  "Root": {
+    "defined_theme": "Consistent adrenaline pressure and drive to act; reliable stress management and fuel for momentum",
+    "open_theme": "Amplifies pressure from others; wisdom about which pressures are worth responding to; tendency to rush",
+    "biological": "Adrenal glands"
+  }
+}

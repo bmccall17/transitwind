@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+venv/
+.venv/
+
+# Environment
+.env
+
+# Database
+*.db
+*.sqlite3
+
+# Swiss Ephemeris data files
+ephe/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Testing
+.pytest_cache/
+htmlcov/
+.coverage

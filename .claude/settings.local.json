@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git init:*)",
+      "Bash(node:*)",
+      "Bash(npm create:*)",
+      "Read(//tmp/**)",
+      "Bash(rm -rf tw-vite-temp)",
+      "Bash(cp:*)",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(python3:*)",
+      "Bash(.:*)",
+      "Bash(ls:*)",
+      "Bash(npx vite:*)"
+    ]
+  }
+}

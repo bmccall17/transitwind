@@ -1,0 +1,172 @@
+"""
+AI interpretation service using Claude API.
+
+Generates personalized daily transit interpretations.
+"""
+
+import json
+from pathlib import Path
+import anthropic
+
+from backend.app.config import ANTHROPIC_API_KEY
+
+_data_dir = Path(__file__).parent.parent / "data"
+_gates_data: dict | None = None
+_channels_data: dict | None = None
+_centers_data: dict | None = None
+
+
+def _load_knowledge_base():
+    global _gates_data, _channels_data, _centers_data
+    if _gates_data is None:
+        with open(_data_dir / "gates.json") as f:
+            _gates_data = json.load(f)
+        with open(_data_dir / "channels.json") as f:
+            _channels_data = json.load(f)
+        with open(_data_dir / "centers.json") as f:
+            _centers_data = json.load(f)
+
+
+def _build_context(overlay: dict, natal_chart: dict) -> str:
+    """Build a context string describing the overlay for the AI prompt."""
+    _load_knowledge_base()
+
+    parts = []
+
+    # User's chart basics
+    parts.append(f"**User's Chart**: {natal_chart['type']}, {natal_chart['authority']} Authority, Profile {natal_chart['profile']}")
+    parts.append(f"**Defined Centers**: {', '.join(natal_chart['defined_centers'])}")
+    parts.append(f"**Undefined/Open Centers**: {', '.join(natal_chart['undefined_centers'])}")
+
+    # Today's key transits
+    if overlay["completed_channels"]:
+        parts.append("\n**Channels Completed by Today's Transits:**")
+        for ch in overlay["completed_channels"]:
+            gates = ch["gates"]
+            name = ch["name"]
+            centers = ch["centers"]
+            gate_a_info = _gates_data.get(str(gates[0]), {})
+            gate_b_info = _gates_data.get(str(gates[1]), {})
+            parts.append(
+                f"- Channel {gates[0]}-{gates[1]} ({name}): "
+                f"{centers[0]} ↔ {centers[1]}. "
+                f"Gate {gates[0]}: {gate_a_info.get('name', '')} — {gate_a_info.get('theme', '')}. "
+                f"Gate {gates[1]}: {gate_b_info.get('name', '')} — {gate_b_info.get('theme', '')}."
+            )
+
+    if overlay["newly_defined_centers"]:
+        parts.append(f"\n**Centers Temporarily Defined by Transits**: {', '.join(overlay['newly_defined_centers'])}")
+        for center in overlay["newly_defined_centers"]:
+            c_info = _centers_data.get(center, {})
+            parts.append(f"- {center}: When defined — {c_info.get('defined_theme', '')}. Normally open for this person — {c_info.get('open_theme', '')}")
+
+    if overlay["reinforced_gates"]:
+        parts.append(f"\n**Reinforced Gates** (transit activating natal gates): {overlay['reinforced_gates']}")
+
+    if overlay["transit_only_gates"]:
+        top_transit = overlay["transit_only_gates"][:5]
+        parts.append(f"\n**Notable Transit-Only Gates**: {top_transit}")
+        for g in top_transit:
+            g_info = _gates_data.get(str(g), {})
+            parts.append(f"- Gate {g}: {g_info.get('name', '')} — {g_info.get('theme', '')}")
+
+    return "\n".join(parts)
+
+
+async def generate_daily_interpretation(overlay: dict, natal_chart: dict) -> dict:
+    """Generate a daily transit interpretation using Claude.
+
+    Returns: {"summary": str, "prompts": list[str]}
+    """
+    context = _build_context(overlay, natal_chart)
+
+    system_prompt = """You are a Human Design transit interpreter. Your role is to help people
+understand how today's planetary transits interact with their personal Human Design chart.
+
+Guidelines:
+- Use warm, accessible language — avoid jargon unless you explain it
+- Frame everything as awareness, not prediction. Use "you may notice" not "you will"
+- Focus on the most significant interactions (completed channels, newly defined centers)
+- Provide practical awareness prompts the person can reflect on today
+- Keep the summary to 2-4 paragraphs
+- End with 2-3 specific reflection prompts
+- Never make health, financial, or relationship predictions
+- Frame open/undefined centers as places of wisdom and sensitivity, not weakness
+- This is a tool for self-awareness, not fortune-telling
+
+Respond with valid JSON: {"summary": "...", "prompts": ["...", "...", "..."]}"""
+
+    user_prompt = f"""Based on this transit overlay data, write a personalized daily transit interpretation:
+
+{context}
+
+Remember: Focus on the most impactful transits. Be specific to THIS person's chart.
+Write as if you're a knowledgeable friend helping them notice the energetic weather of the day."""
+
+    if not ANTHROPIC_API_KEY:
+        # Fallback when no API key is configured
+        return {
+            "summary": _generate_fallback(overlay, natal_chart),
+            "prompts": _generate_fallback_prompts(overlay),
+        }
+
+    client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
+    message = await client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=1024,
+        system=system_prompt,
+        messages=[{"role": "user", "content": user_prompt}],
+    )
+
+    try:
+        result = json.loads(message.content[0].text)
+        return {
+            "summary": result["summary"],
+            "prompts": result.get("prompts", []),
+        }
+    except (json.JSONDecodeError, KeyError, IndexError):
+        return {
+            "summary": message.content[0].text,
+            "prompts": [],
+        }
+
+
+def _generate_fallback(overlay: dict, natal_chart: dict) -> str:
+    """Simple template-based fallback when no AI API key is available."""
+    _load_knowledge_base()
+    parts = []
+
+    parts.append(f"Today's transit weather for your {natal_chart['type']} chart:")
+
+    if overlay["completed_channels"]:
+        for ch in overlay["completed_channels"]:
+            name = ch["name"]
+            centers = ch["centers"]
+            parts.append(
+                f"\nA transit is completing your Channel of {name} "
+                f"({centers[0]} ↔ {centers[1]}). You may notice this energy "
+                f"flowing more consistently today."
+            )
+
+    if overlay["newly_defined_centers"]:
+        for center in overlay["newly_defined_centers"]:
+            c_info = _centers_data.get(center, {})
+            parts.append(
+                f"\nYour normally open {center} center is temporarily defined by transits. "
+                f"You might experience: {c_info.get('defined_theme', 'a more consistent energy here')}."
+            )
+
+    if not overlay["completed_channels"] and not overlay["newly_defined_centers"]:
+        parts.append("\nToday's transits are activating gates in your chart without completing "
+                     "new channels. This is a subtler day — notice any background themes.")
+
+    return " ".join(parts)
+
+
+def _generate_fallback_prompts(overlay: dict) -> list[str]:
+    prompts = ["What are you noticing in your body right now?"]
+    if overlay["completed_channels"]:
+        prompts.append("Where do you feel new energy flowing today?")
+    if overlay["newly_defined_centers"]:
+        prompts.append("How does it feel when a usually open part of your design gets activated?")
+    return prompts
