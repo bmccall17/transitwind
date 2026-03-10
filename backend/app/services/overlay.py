@@ -14,6 +14,45 @@ from backend.app.data.wheel import (
 )
 
 
+def rank_changes_by_significance(upcoming_changes: list[dict], natal_chart: dict) -> list[dict]:
+    """Rank upcoming gate changes by personal significance.
+
+    Significance levels:
+    - high: next_gate completes a channel with a natal gate
+    - medium: next_gate matches a natal gate (reinforcement)
+    - low: no special interaction
+    """
+    natal_gates = set(natal_chart["defined_gates"])
+
+    for change in upcoming_changes:
+        next_gate = change["next_gate"]
+        significance = "low"
+        reason = ""
+
+        # Check if next_gate completes any channel with a natal gate
+        for (ga, gb), (ca, cb, name) in CHANNELS.items():
+            if next_gate == ga and gb in natal_gates:
+                significance = "high"
+                reason = f"Completes your Channel of {name} ({ga}-{gb}) connecting {ca} ↔ {cb}"
+                break
+            if next_gate == gb and ga in natal_gates:
+                significance = "high"
+                reason = f"Completes your Channel of {name} ({ga}-{gb}) connecting {ca} ↔ {cb}"
+                break
+
+        if significance == "low" and next_gate in natal_gates:
+            significance = "medium"
+            reason = f"Reinforces your natal Gate {next_gate}"
+
+        change["significance"] = significance
+        change["reason"] = reason
+
+    # Sort: high first, then medium, then low. Within same level, sort by time
+    order = {"high": 0, "medium": 1, "low": 2}
+    upcoming_changes.sort(key=lambda c: (order[c["significance"]], c["change_timestamp"]))
+    return upcoming_changes
+
+
 def compute_overlay(natal_chart: dict, transit_snapshot: dict) -> dict:
     """Compute the overlay of transits on a natal chart.
 

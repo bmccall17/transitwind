@@ -67,6 +67,17 @@ export const api = {
   getOverlay: () => request<any>('/transit/overlay'),
   getOverlayByDate: (date: string) => request<any>(`/transit/by-date?date=${date}`),
 
+  // Transit Tools
+  getUpcomingChanges: () => request<any>('/transit/upcoming-changes'),
+  getSunTracker: () => request<any>('/transit/sun-tracker'),
+  getEphemeris: (startDate: string, days: number = 30) =>
+    request<any>(`/transit/ephemeris?start_date=${startDate}&days=${days}`),
+  interpretCell: (planet: string, gate: number, line: number, date: string) =>
+    request<any>('/transit/interpret-cell', {
+      method: 'POST',
+      body: JSON.stringify({ planet, gate, line, date }),
+    }),
+
   // Interpretation
   getDailyInterpretation: () => request<any>('/interpret/daily'),
 

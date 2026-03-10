@@ -5,6 +5,7 @@ import Onboarding from './components/Onboarding'
 import DailyView from './components/DailyView'
 import Journal from './components/Journal'
 import Profile from './components/Profile'
+import TransitTools from './components/TransitTools'
 import Login from './components/Login'
 
 function App() {
@@ -81,6 +82,7 @@ function App() {
         </h1>
         <div className="flex gap-4 items-center text-sm">
           <button onClick={() => navigate('/')} className="text-slate-400 hover:text-white transition">Today</button>
+          <button onClick={() => navigate('/tools')} className="text-slate-400 hover:text-white transition">Tools</button>
           <button onClick={() => navigate('/journal')} className="text-slate-400 hover:text-white transition">Journal</button>
           <button onClick={() => navigate('/profile')} className="text-slate-400 hover:text-white transition">Profile</button>
           <a href="https://jovianarchive.com/pages/human-design-just-now-chart" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition">Just Now</a>
@@ -90,6 +92,7 @@ function App() {
       <main className="max-w-4xl mx-auto px-4 py-6">
         <Routes>
           <Route path="/" element={<DailyView />} />
+          <Route path="/tools" element={<TransitTools />} />
           <Route path="/journal" element={<Journal />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="*" element={<Navigate to="/" />} />

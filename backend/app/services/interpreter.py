@@ -144,6 +144,124 @@ Write as if you're a knowledgeable friend helping them notice the energetic weat
         }
 
 
+async def generate_upcoming_summary(ranked_changes: list[dict], natal_chart: dict) -> str:
+    """Generate a 2-3 sentence AI summary of the most important upcoming transit shifts."""
+    _load_knowledge_base()
+
+    high_changes = [c for c in ranked_changes if c["significance"] == "high"]
+    medium_changes = [c for c in ranked_changes if c["significance"] == "medium"]
+
+    parts = []
+    parts.append(f"User chart: {natal_chart['type']}, {natal_chart['authority']} Authority, Profile {natal_chart['profile']}")
+    parts.append(f"Defined gates: {natal_chart['defined_gates']}")
+
+    if high_changes:
+        parts.append("\nHigh-significance upcoming changes:")
+        for c in high_changes:
+            gate_info = _gates_data.get(str(c["next_gate"]), {})
+            parts.append(f"- {c['planet']} entering Gate {c['next_gate']} ({gate_info.get('name', '')}) — {c['reason']}")
+
+    if medium_changes:
+        parts.append("\nMedium-significance changes:")
+        for c in medium_changes[:3]:
+            gate_info = _gates_data.get(str(c["next_gate"]), {})
+            parts.append(f"- {c['planet']} entering Gate {c['next_gate']} ({gate_info.get('name', '')})")
+
+    context = "\n".join(parts)
+
+    if not GEMINI_API_KEY:
+        if high_changes:
+            summaries = []
+            for c in high_changes[:2]:
+                summaries.append(f"{c['planet']} is about to enter Gate {c['next_gate']}, {c['reason'].lower()}.")
+            return " ".join(summaries) + " Pay attention to these shifts."
+        return "No major channel-completing transits in the near future. A quieter period for your chart."
+
+    client = genai.Client(api_key=GEMINI_API_KEY)
+    response = await client.aio.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=(
+            "You are a Human Design transit interpreter. Write 2-3 concise sentences summarizing "
+            "the most personally significant upcoming planetary gate changes for this person. "
+            "Focus on what will matter most to THEM based on their chart. Use warm, accessible language. "
+            "No jargon. No predictions — only awareness.\n\n" + context
+        ),
+        config=genai.types.GenerateContentConfig(max_output_tokens=256),
+    )
+    return (response.text or "").strip()
+
+
+async def generate_gate_context(planet: str, gate: int, line: int, natal_chart: dict) -> str:
+    """Generate a short 1-2 sentence context for a specific planet in a gate/line."""
+    _load_knowledge_base()
+
+    gate_info = _gates_data.get(str(gate), {})
+    context_parts = [
+        f"Planet: {planet} in Gate {gate}.{line}",
+        f"Gate {gate}: {gate_info.get('name', '')} — {gate_info.get('theme', '')}",
+        f"User chart: {natal_chart['type']}, {natal_chart['authority']} Authority",
+        f"User's defined gates: {natal_chart['defined_gates']}",
+    ]
+
+    # Check if this gate is in their natal chart
+    if gate in natal_chart["defined_gates"]:
+        context_parts.append(f"Gate {gate} IS in their natal chart — this transit reinforces their definition.")
+    else:
+        context_parts.append(f"Gate {gate} is NOT in their natal chart — this is a conditioning influence.")
+
+    context = "\n".join(context_parts)
+
+    if not GEMINI_API_KEY:
+        if gate in natal_chart["defined_gates"]:
+            return f"The {planet} is reinforcing your natal Gate {gate} ({gate_info.get('name', '')}). You may feel this energy more intensely today."
+        return f"The {planet} in Gate {gate} ({gate_info.get('name', '')}) is conditioning your chart with the theme of {gate_info.get('theme', 'this energy')}."
+
+    client = genai.Client(api_key=GEMINI_API_KEY)
+    response = await client.aio.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=(
+            "You are a Human Design transit interpreter. Write 1-2 concise sentences about what "
+            "this specific planetary transit means for this person's chart. Be personal. No jargon. "
+            "Frame as awareness, not prediction.\n\n" + context
+        ),
+        config=genai.types.GenerateContentConfig(max_output_tokens=128),
+    )
+    return (response.text or "").strip()
+
+
+async def generate_cell_interpretation(planet: str, gate: int, line: int, date: str, natal_chart: dict) -> str:
+    """Generate interpretation for an ephemeris calendar cell."""
+    _load_knowledge_base()
+
+    gate_info = _gates_data.get(str(gate), {})
+    context_parts = [
+        f"Date: {date}",
+        f"Planet: {planet} in Gate {gate}.{line}",
+        f"Gate {gate}: {gate_info.get('name', '')} — {gate_info.get('theme', '')}",
+        f"User chart: {natal_chart['type']}, {natal_chart['authority']} Authority",
+        f"User's defined gates: {natal_chart['defined_gates']}",
+    ]
+
+    if gate in natal_chart["defined_gates"]:
+        context_parts.append(f"Gate {gate} IS in their natal chart — reinforcement.")
+
+    context = "\n".join(context_parts)
+
+    if not GEMINI_API_KEY:
+        return f"{planet} in Gate {gate}.{line} ({gate_info.get('name', '')}): {gate_info.get('theme', 'A transit influence on your chart.')}."
+
+    client = genai.Client(api_key=GEMINI_API_KEY)
+    response = await client.aio.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=(
+            "You are a Human Design transit interpreter. Write 2-3 sentences about this specific "
+            "transit for this person. Be personal and practical. No jargon. Frame as awareness.\n\n" + context
+        ),
+        config=genai.types.GenerateContentConfig(max_output_tokens=192),
+    )
+    return (response.text or "").strip()
+
+
 def _generate_fallback(overlay: dict, natal_chart: dict) -> str:
     """Simple template-based fallback when no AI API key is available."""
     _load_knowledge_base()

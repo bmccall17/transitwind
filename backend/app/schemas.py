@@ -86,6 +86,65 @@ class InterpretationOut(BaseModel):
     date: str
 
 
+# --- Transit Tools ---
+
+class UpcomingChangeOut(BaseModel):
+    planet: str
+    current_gate: int
+    current_line: int
+    next_gate: int
+    next_line: int
+    change_timestamp: float
+    is_retrograde: bool
+    significance: str  # high, medium, low
+    reason: str
+
+
+class UpcomingChangesResponse(BaseModel):
+    changes: list[UpcomingChangeOut]
+    ai_summary: str
+
+
+class SunTrackerOut(BaseModel):
+    current_gate: int
+    current_line: int
+    longitude: float
+    gate_progress: float  # 0.0 to 1.0, position within gate
+    next_line_timestamp: float
+    next_gate_timestamp: float
+    next_gate: int
+    prev_gate: int
+    ai_context: str
+
+
+class EphemerisCell(BaseModel):
+    gate: int
+    line: int
+
+
+class EphemerisDay(BaseModel):
+    date: str
+    planets: dict[str, EphemerisCell]
+    has_channel_completion: bool
+    completed_channels: list[str]
+
+
+class EphemerisResponse(BaseModel):
+    days: list[EphemerisDay]
+    planet_order: list[str]
+
+
+class InterpretCellIn(BaseModel):
+    planet: str
+    gate: int
+    line: int
+    date: str
+
+
+class InterpretCellOut(BaseModel):
+    interpretation: str
+
+
 # --- Journal ---
 
 class JournalIn(BaseModel):
