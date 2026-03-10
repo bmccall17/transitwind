@@ -115,7 +115,7 @@ Write as if you're a knowledgeable friend helping them notice the energetic weat
         model="gemini-2.5-flash",
         contents=f"{system_prompt}\n\n{user_prompt}",
         config=genai.types.GenerateContentConfig(
-            max_output_tokens=1024,
+            max_output_tokens=2048,
             response_mime_type="application/json",
         ),
     )
@@ -137,10 +137,14 @@ Write as if you're a knowledgeable friend helping them notice the energetic weat
             "prompts": result.get("prompts", []),
         }
     except (json.JSONDecodeError, KeyError, TypeError):
-        # If JSON parsing fails, use the raw text as the summary
+        # Truncated JSON recovery: try to extract "summary" value
+        import re
+        match = re.search(r'"summary"\s*:\s*"((?:[^"\\]|\\.)*)', cleaned)
+        if match:
+            return {"summary": match.group(1), "prompts": []}
         return {
-            "summary": raw if raw else _generate_fallback(overlay, natal_chart),
-            "prompts": [],
+            "summary": _generate_fallback(overlay, natal_chart),
+            "prompts": _generate_fallback_prompts(overlay),
         }
 
 
