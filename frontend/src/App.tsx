@@ -83,6 +83,7 @@ function App() {
           <button onClick={() => navigate('/')} className="text-slate-400 hover:text-white transition">Today</button>
           <button onClick={() => navigate('/journal')} className="text-slate-400 hover:text-white transition">Journal</button>
           <button onClick={() => navigate('/profile')} className="text-slate-400 hover:text-white transition">Profile</button>
+          <a href="https://jovianarchive.com/pages/human-design-just-now-chart" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition">Just Now</a>
           <button onClick={handleLogout} className="text-slate-500 hover:text-red-400 transition">Logout</button>
         </div>
       </nav>
