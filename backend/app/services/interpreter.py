@@ -120,15 +120,26 @@ Write as if you're a knowledgeable friend helping them notice the energetic weat
         ),
     )
 
+    raw = response.text or ""
+
+    # Strip markdown code fences if present
+    cleaned = raw.strip()
+    if cleaned.startswith("```"):
+        cleaned = cleaned.split("\n", 1)[-1]
+        if cleaned.endswith("```"):
+            cleaned = cleaned[:-3]
+        cleaned = cleaned.strip()
+
     try:
-        result = json.loads(response.text)
+        result = json.loads(cleaned)
         return {
             "summary": result["summary"],
             "prompts": result.get("prompts", []),
         }
     except (json.JSONDecodeError, KeyError, TypeError):
+        # If JSON parsing fails, use the raw text as the summary
         return {
-            "summary": response.text or _generate_fallback(overlay, natal_chart),
+            "summary": raw if raw else _generate_fallback(overlay, natal_chart),
             "prompts": [],
         }
 
