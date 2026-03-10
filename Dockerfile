@@ -7,7 +7,7 @@ WORKDIR /app
 COPY . .
 
 # python deps
-RUN pip install --no-cache-dir fastapi uvicorn pyswisseph sqlalchemy anthropic pyjwt bcrypt python-dotenv pydantic httpx
+RUN pip install --no-cache-dir fastapi uvicorn pyswisseph sqlalchemy google-genai pyjwt bcrypt python-dotenv pydantic httpx
 
 # build frontend
 RUN cd frontend && npm install && npx vite build

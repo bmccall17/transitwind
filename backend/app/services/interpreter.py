@@ -1,14 +1,14 @@
 """
-AI interpretation service using Claude API.
+AI interpretation service using Gemini API.
 
 Generates personalized daily transit interpretations.
 """
 
 import json
 from pathlib import Path
-import anthropic
+from google import genai
 
-from backend.app.config import ANTHROPIC_API_KEY
+from backend.app.config import GEMINI_API_KEY
 
 _data_dir = Path(__file__).parent.parent / "data"
 _gates_data: dict | None = None
@@ -74,7 +74,7 @@ def _build_context(overlay: dict, natal_chart: dict) -> str:
 
 
 async def generate_daily_interpretation(overlay: dict, natal_chart: dict) -> dict:
-    """Generate a daily transit interpretation using Claude.
+    """Generate a daily transit interpretation using Gemini.
 
     Returns: {"summary": str, "prompts": list[str]}
     """
@@ -84,7 +84,7 @@ async def generate_daily_interpretation(overlay: dict, natal_chart: dict) -> dic
 understand how today's planetary transits interact with their personal Human Design chart.
 
 Guidelines:
-- Use warm, accessible language — avoid jargon unless you explain it
+- Use warm, accessible language. avoid jargon unless you explain it
 - Frame everything as awareness, not prediction. Use "you may notice" not "you will"
 - Focus on the most significant interactions (completed channels, newly defined centers)
 - Provide practical awareness prompts the person can reflect on today
@@ -103,30 +103,32 @@ Respond with valid JSON: {"summary": "...", "prompts": ["...", "...", "..."]}"""
 Remember: Focus on the most impactful transits. Be specific to THIS person's chart.
 Write as if you're a knowledgeable friend helping them notice the energetic weather of the day."""
 
-    if not ANTHROPIC_API_KEY:
+    if not GEMINI_API_KEY:
         # Fallback when no API key is configured
         return {
             "summary": _generate_fallback(overlay, natal_chart),
             "prompts": _generate_fallback_prompts(overlay),
         }
 
-    client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
-    message = await client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=1024,
-        system=system_prompt,
-        messages=[{"role": "user", "content": user_prompt}],
+    client = genai.Client(api_key=GEMINI_API_KEY)
+    response = await client.aio.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=f"{system_prompt}\n\n{user_prompt}",
+        config=genai.types.GenerateContentConfig(
+            max_output_tokens=1024,
+            response_mime_type="application/json",
+        ),
     )
 
     try:
-        result = json.loads(message.content[0].text)
+        result = json.loads(response.text)
         return {
             "summary": result["summary"],
             "prompts": result.get("prompts", []),
         }
-    except (json.JSONDecodeError, KeyError, IndexError):
+    except (json.JSONDecodeError, KeyError, TypeError):
         return {
-            "summary": message.content[0].text,
+            "summary": response.text or _generate_fallback(overlay, natal_chart),
             "prompts": [],
         }
 
@@ -158,7 +160,7 @@ def _generate_fallback(overlay: dict, natal_chart: dict) -> str:
 
     if not overlay["completed_channels"] and not overlay["newly_defined_centers"]:
         parts.append("\nToday's transits are activating gates in your chart without completing "
-                     "new channels. This is a subtler day — notice any background themes.")
+                     "new channels. This is a subtler day. notice any background themes.")
 
     return " ".join(parts)
 

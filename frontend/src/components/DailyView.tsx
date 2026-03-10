@@ -126,7 +126,7 @@ export default function DailyView() {
             >
               {loadingInterp ? 'Generating interpretation...' : 'Get AI Interpretation'}
             </button>
-            <p className="text-xs text-slate-600 mt-2">Powered by Claude — personalized to your chart</p>
+            <p className="text-xs text-slate-600 mt-2">powered by Gemini, personalized to your chart</p>
           </div>
         )}
       </div>
