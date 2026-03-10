@@ -2,6 +2,9 @@
 	"folders": [
 		{
 			"uri": "vscode-remote://wsl+ubuntu/home/bam/projects/transitwind"
+		},
+		{
+			"uri": "vscode-remote://wsl+ubuntu/mnt/e/Dropbox/xfer/_full books pdfs/humandesignbooks"
 		}
 	],
 	"remoteAuthority": "wsl+ubuntu",

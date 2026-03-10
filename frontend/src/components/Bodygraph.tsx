@@ -63,36 +63,93 @@ const CHANNELS: [number, number, string, string][] = [
   [9, 52,  'Sacral', 'Root'],
 ]
 
-// Determine dynamic offset to separate parallel channels
-function getChannelOffset(index: number, total: number): number {
-  if (total <= 1) return 0
-  const spread = Math.min(total * 8, 32)
-  return (index - (total - 1) / 2) * (spread / total)
+// Exact mapping of gate positions relative to center origin (0,0)
+const GATE_OFFSETS: Record<number, { dx: number, dy: number, center: string }> = {
+  // Head: 0,-25 -30,20 30,20
+  64: { dx: -14, dy: 10, center: 'Head' },
+  61: { dx: 0, dy: 10, center: 'Head' },
+  63: { dx: 14, dy: 10, center: 'Head' },
+  // Ajna: -30,-20 30,-20 0,25
+  47: { dx: -14, dy: -10, center: 'Ajna' },
+  24: { dx: 0, dy: -10, center: 'Ajna' },
+  4: { dx: 14, dy: -10, center: 'Ajna' },
+  17: { dx: -10, dy: 5, center: 'Ajna' },
+  11: { dx: 0, dy: 15, center: 'Ajna' },
+  43: { dx: 10, dy: 5, center: 'Ajna' },
+  // Throat: rect -22, -22, 44, 44
+  62: { dx: -14, dy: -14, center: 'Throat' },
+  23: { dx: 0, dy: -14, center: 'Throat' },
+  56: { dx: 14, dy: -14, center: 'Throat' },
+  16: { dx: -14, dy: -4, center: 'Throat' },
+  20: { dx: -14, dy: 6, center: 'Throat' },
+  31: { dx: -10, dy: 14, center: 'Throat' },
+  8: { dx: 0, dy: 14, center: 'Throat' },
+  33: { dx: 10, dy: 14, center: 'Throat' },
+  45: { dx: 15, dy: 6, center: 'Throat' },
+  12: { dx: 15, dy: -4, center: 'Throat' },
+  35: { dx: 15, dy: -14, center: 'Throat' }, 
+  // G Center: diamond 0,-25 25,0 0,25 -25,0
+  1: { dx: 0, dy: -19, center: 'G' },
+  7: { dx: -10, dy: -10, center: 'G' },
+  13: { dx: 10, dy: -10, center: 'G' },
+  10: { dx: -16, dy: 0, center: 'G' },
+  25: { dx: 16, dy: 0, center: 'G' },
+  15: { dx: -10, dy: 13, center: 'G' },
+  46: { dx: 10, dy: 10, center: 'G' },
+  2: { dx: 0, dy: 16, center: 'G' },
+  // Heart: -15,-15 15,0 -15,15
+  21: { dx: -5, dy: -8, center: 'Heart' },
+  51: { dx: -8, dy: 0, center: 'Heart' },
+  26: { dx: -5, dy: 8, center: 'Heart' },
+  40: { dx: 5, dy: 0, center: 'Heart' },
+  // Spleen: -25,-25 25,0 -25,25
+  48: { dx: -16, dy: -16, center: 'Spleen' },
+  57: { dx: -6, dy: -8, center: 'Spleen' },
+  44: { dx: 2, dy: -2, center: 'Spleen' },
+  50: { dx: 20, dy: 0, center: 'Spleen' },
+  32: { dx: -2, dy: 10, center: 'Spleen' },
+  28: { dx: -10, dy: 15, center: 'Spleen' },
+  18: { dx: -16, dy: 18, center: 'Spleen' },
+  // Solar Plexus: 25,-25 -25,0 25,25
+  36: { dx: 16, dy: -16, center: 'Solar Plexus' },
+  22: { dx: 6, dy: -8, center: 'Solar Plexus' },
+  37: { dx: -2, dy: -2, center: 'Solar Plexus' },
+  6: { dx: -12, dy: 5, center: 'Solar Plexus' },
+  49: { dx: 2, dy: 10, center: 'Solar Plexus' },
+  55: { dx: 10, dy: 15, center: 'Solar Plexus' },
+  30: { dx: 16, dy: 18, center: 'Solar Plexus' },
+  // Sacral: rect -22, -22
+  5: { dx: -14, dy: -14, center: 'Sacral' },
+  14: { dx: 0, dy: -14, center: 'Sacral' },
+  29: { dx: 14, dy: -14, center: 'Sacral' },
+  34: { dx: -14, dy: -4, center: 'Sacral' },
+  27: { dx: -14, dy: 6, center: 'Sacral' },
+  59: { dx: 14, dy: 0, center: 'Sacral' },
+  42: { dx: -14, dy: 14, center: 'Sacral' },
+  3: { dx: 0, dy: 14, center: 'Sacral' },
+  9: { dx: 14, dy: 14, center: 'Sacral' },
+  // Root: rect -22, -22
+  53: { dx: -12, dy: -14, center: 'Root' },
+  60: { dx: 0, dy: -14, center: 'Root' },
+  52: { dx: 12, dy: -14, center: 'Root' },
+  54: { dx: -14, dy: -4, center: 'Root' },
+  38: { dx: -14, dy: 4, center: 'Root' },
+  58: { dx: -14, dy: 12, center: 'Root' },
+  19: { dx: 14, dy: -4, center: 'Root' },
+  39: { dx: 14, dy: 4, center: 'Root' },
+  41: { dx: 14, dy: 12, center: 'Root' }
 }
 
-function groupByCenterPair(channels: typeof CHANNELS) {
-  const groups: Record<string, number[]> = {}
-  channels.forEach((ch, i) => {
-    const key = [ch[2], ch[3]].sort().join('|')
-    if (!groups[key]) groups[key] = []
-    groups[key].push(i)
-  })
-  return groups
-}
-
-const centerPairGroups = groupByCenterPair(CHANNELS)
-
-// Specific Colors mapping directly to the mandala image provided by user
 const CENTER_COLORS: Record<string, string> = {
-  Head: '#facc15',          // Yellow
-  Ajna: '#84cc16',          // Green
-  Throat: '#b45309',        // Brown
-  G: '#facc15',             // Yellow
-  Heart: '#dc2626',         // Red
-  Spleen: '#b45309',        // Brown
-  'Solar Plexus': '#b45309',// Brown
-  Sacral: '#dc2626',        // Red
-  Root: '#b45309',          // Brown
+  Head: '#facc15',
+  Ajna: '#84cc16',
+  Throat: '#b45309',
+  G: '#facc15',
+  Heart: '#dc2626',
+  Spleen: '#b45309',
+  'Solar Plexus': '#b45309',
+  Sacral: '#dc2626',
+  Root: '#b45309',
 }
 
 function getGateStatus(gate: number, natalGates: number[], transitGates: number[], reinforcedGates: number[]): 'natal' | 'transit' | 'reinforced' | 'inactive' {
@@ -136,82 +193,64 @@ export default function Bodygraph({
           opacity="0.3" 
         />
 
-        {/* Channels */}
+        {/* 1. Underlying Channels Drawn Gate-to-Gate */}
         {CHANNELS.map(([gA, gB, cA, cB], i) => {
-          const pairKey = [cA, cB].sort().join('|')
-          const group = centerPairGroups[pairKey]
-          const idxInGroup = group.indexOf(i)
-          const offset = getChannelOffset(idxInGroup, group.length)
-
-          const a = C[cA]
-          const b = C[cB]
-
-          // Add curve control points to expand outward
-          const dx = b.x - a.x
-          const dy = b.y - a.y
-          const len = Math.sqrt(dx * dx + dy * dy)
-          const nx = -dy / len * offset
-          const ny = dx / len * offset
-
-          const x1 = a.x + nx
-          const y1 = a.y + ny
-          const x2 = b.x + nx
-          const y2 = b.y + ny
+          const offA = GATE_OFFSETS[gA]
+          const offB = GATE_OFFSETS[gB]
           
-          // Mid curve point pushing outward
-          const cx = (a.x + b.x) / 2 + (nx * 1.5)
-          const cy = (a.y + b.y) / 2 + (ny * 1.5)
+          if (!offA || !offB) return null
+
+          const x1 = C[cA].x + offA.dx
+          const y1 = C[cA].y + offA.dy
+          const x2 = C[cB].x + offB.dx
+          const y2 = C[cB].y + offB.dy
+
+          // Slight bezier outward to be organic (using perpendicular offset)
+          const dx = x2 - x1
+          const dy = y2 - y1
+          const len = Math.sqrt(dx * dx + dy * dy)
+          
+          let nx = (-dy / len) * 12
+          let ny = (dx / len) * 12
+          
+          // Flatten integration channels directly
+          if (Math.abs(dx) > Math.abs(dy) * 2) {
+            nx = 0
+            ny = 0 // use mostly straight line for horizontal connections like 20-34
+          }
+
+          const cx = (x1 + x2) / 2 + nx
+          const cy = (y1 + y2) / 2 + ny
 
           const statusA = getGateStatus(gA, natalGates, transitGates, reinforcedGates)
           const statusB = getGateStatus(gB, natalGates, transitGates, reinforcedGates)
-          
-          // Check if completion is active
           const isCompleted = completedGatePairs.has(`${gA}-${gB}`) || completedGatePairs.has(`${gB}-${gA}`)
           
-          // Bezier Half Evaluator function B(t) for quadratics
           const getMidpoint = (t: number) => ({
             x: (1-t)*(1-t)*x1 + 2*(1-t)*t*cx + t*t*x2,
             y: (1-t)*(1-t)*y1 + 2*(1-t)*t*cy + t*t*y2
           })
           
           const mid = getMidpoint(0.5)
-
-          // We draw the full inactive channel underneath first to ensure solid grey connection
           const pathA = `M ${x1} ${y1} Q ${cx} ${cy} ${mid.x} ${mid.y}`
           const pathB = `M ${x2} ${y2} Q ${cx} ${cy} ${mid.x} ${mid.y}`
-
-          // Label coordinates (along the line, close to the center)
-          const labelA = getMidpoint(0.15)
-          const labelB = getMidpoint(0.85)
+          const fullPath = `M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`
 
           return (
             <g key={`ch-${i}`}>
-              {/* Background inactive full line */}
-              <path d={`M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`} stroke="#475569" strokeWidth={5} fill="none" opacity={0.3} />
+              <path d={fullPath} stroke="#475569" strokeWidth={6} fill="none" opacity={0.3} />
               
-              {/* Active half paths */}
               {statusA !== 'inactive' && (
-                <path d={pathA} stroke={gateColor(statusA, isCompleted)} strokeWidth={5} fill="none" />
+                <path d={pathA} stroke={gateColor(statusA, isCompleted)} strokeWidth={6} fill="none" />
               )}
               {statusB !== 'inactive' && (
-                <path d={pathB} stroke={gateColor(statusB, isCompleted)} strokeWidth={5} fill="none" />
+                <path d={pathB} stroke={gateColor(statusB, isCompleted)} strokeWidth={6} fill="none" />
               )}
-
-              {/* Gate small circles and numbers */}
-              <circle cx={labelA.x} cy={labelA.y} r={7} fill={statusA !== 'inactive' ? '#f8fafc' : '#94a3b8'} stroke={statusA !== 'inactive' ? '#0f172a' : 'transparent'} strokeWidth={1} />
-              <text x={labelA.x} y={labelA.y + 0.5} textAnchor="middle" dominantBaseline="middle" fontSize={6.5} fontWeight={700} fill="#0f172a">
-                {gA}
-              </text>
-              
-              <circle cx={labelB.x} cy={labelB.y} r={7} fill={statusB !== 'inactive' ? '#f8fafc' : '#94a3b8'} stroke={statusB !== 'inactive' ? '#0f172a' : 'transparent'} strokeWidth={1} />
-              <text x={labelB.x} y={labelB.y + 0.5} textAnchor="middle" dominantBaseline="middle" fontSize={6.5} fontWeight={700} fill="#0f172a">
-                {gB}
-              </text>
             </g>
           )
         })}
 
-        {/* Centers */}
+        {/* 2. Geometric Centers Drawn ON TOP of Channels */}
         {Object.entries(C).map(([name, pos]) => {
           const isDefined = allDefinedCenters.includes(name)
           const isTransit = newlyDefinedCenters.includes(name)
@@ -222,30 +261,51 @@ export default function Bodygraph({
           return (
             <g key={name} transform={`translate(${pos.x}, ${pos.y})`}>
               {name === 'Head' ? (
-                // Upward point triangle
                 <polygon points="0,-25 -30,20 30,20" fill={fillColor} stroke={strokeColor} strokeWidth={isDefined ? 2 : 1} rx={4} />
               ) : name === 'Ajna' ? (
-                // Downward point triangle
                 <polygon points="-30,-20 30,-20 0,25" fill={fillColor} stroke={strokeColor} strokeWidth={isDefined ? 2 : 1} />
               ) : name === 'G' ? (
-                // Diamond
                 <polygon points="0,-25 25,0 0,25 -25,0" fill={fillColor} stroke={strokeColor} strokeWidth={isDefined ? 2 : 1} />
               ) : name === 'Heart' ? (
-                // Small Triangle pointing Right 
                 <polygon points="-15,-15 15,0 -15,15" fill={fillColor} stroke={strokeColor} strokeWidth={isDefined ? 2 : 1} />
               ) : name === 'Spleen' ? (
-                // Triangle pointing Right
                 <polygon points="-25,-25 25,0 -25,25" fill={fillColor} stroke={strokeColor} strokeWidth={isDefined ? 2 : 1} />
               ) : name === 'Solar Plexus' ? (
-                // Triangle pointing Left
                 <polygon points="25,-25 -25,0 25,25" fill={fillColor} stroke={strokeColor} strokeWidth={isDefined ? 2 : 1} />
               ) : (
-                // Squares (Throat, Sacral, Root)
                 <rect x={-22} y={-22} width={44} height={44} rx={6} fill={fillColor} stroke={strokeColor} strokeWidth={isDefined ? 2 : 1} />
               )}
             </g>
           )
         })}
+
+        {/* 3. Gate Number Circles ON TOP of Centers */}
+        {Object.entries(GATE_OFFSETS).map(([gateStr, { dx, dy, center }]) => {
+          const gate = parseInt(gateStr)
+          const status = getGateStatus(gate, natalGates, transitGates, reinforcedGates)
+          const x = C[center].x + dx
+          const y = C[center].y + dy
+
+          return (
+            <g key={`gate-${gate}`}>
+              <circle 
+                cx={x} cy={y} r={6.5} 
+                fill={status !== 'inactive' ? '#f8fafc' : '#64748b'} 
+                stroke={status !== 'inactive' ? '#0f172a' : 'transparent'} 
+                strokeWidth={1} 
+              />
+              <text 
+                x={x} y={y + 0.5} 
+                textAnchor="middle" dominantBaseline="middle" 
+                fontSize={5.5} fontWeight={700} 
+                fill="#0f172a"
+              >
+                {gate}
+              </text>
+            </g>
+          )
+        })}
+
       </svg>
 
       {/* Legend */}
