@@ -10,7 +10,7 @@ interface Props {
   newlyDefinedCenters: string[]
 }
 
-// Center positions — correctly mapped to a central column with side centers
+// Center positions — matching MyBodyGraph spatial layout
 const C: Record<string, { x: number; y: number }> = {
   Head:          { x: 250, y: 60 },
   Ajna:          { x: 250, y: 130 },
@@ -63,20 +63,31 @@ const CHANNELS: [number, number, string, string][] = [
   [9, 52,  'Sacral', 'Root'],
 ]
 
-// Exact mapping of gate positions relative to center origin (0,0)
+// Curve offsets to ensure channels that bypass centers cleanly bow outwards around them
+const CHANNEL_BENDS: Record<string, number> = {
+  '20-34': 50,  // Throat to Sacral (integration) curves heavily left
+  '16-48': 30,  // curves left around Ajna/G
+  '35-36': -30, // curves right around G
+  '12-22': -15, // slight right curve
+  '21-45': -15,
+  '25-51': -10,
+  '10-57': 25,  // curves left (Integration)
+}
+
+// Geometrically precise local mappings for Gates inside the Center
 const GATE_OFFSETS: Record<number, { dx: number, dy: number, center: string }> = {
-  // Head: 0,-25 -30,20 30,20
-  64: { dx: -14, dy: 10, center: 'Head' },
-  61: { dx: 0, dy: 10, center: 'Head' },
-  63: { dx: 14, dy: 10, center: 'Head' },
-  // Ajna: -30,-20 30,-20 0,25
-  47: { dx: -14, dy: -10, center: 'Ajna' },
-  24: { dx: 0, dy: -10, center: 'Ajna' },
-  4: { dx: 14, dy: -10, center: 'Ajna' },
-  17: { dx: -10, dy: 5, center: 'Ajna' },
-  11: { dx: 0, dy: 15, center: 'Ajna' },
-  43: { dx: 10, dy: 5, center: 'Ajna' },
-  // Throat: rect -22, -22, 44, 44
+  // Head
+  64: { dx: -14, dy: 14, center: 'Head' },
+  61: { dx: 0, dy: 14, center: 'Head' },
+  63: { dx: 14, dy: 14, center: 'Head' },
+  // Ajna
+  47: { dx: -14, dy: -14, center: 'Ajna' },
+  24: { dx: 0, dy: -14, center: 'Ajna' },
+  4: { dx: 14, dy: -14, center: 'Ajna' },
+  17: { dx: -10, dy: 10, center: 'Ajna' },
+  43: { dx: 0, dy: 18, center: 'Ajna' },
+  11: { dx: 10, dy: 10, center: 'Ajna' },
+  // Throat
   62: { dx: -14, dy: -14, center: 'Throat' },
   23: { dx: 0, dy: -14, center: 'Throat' },
   56: { dx: 14, dy: -14, center: 'Throat' },
@@ -85,53 +96,53 @@ const GATE_OFFSETS: Record<number, { dx: number, dy: number, center: string }> =
   31: { dx: -10, dy: 14, center: 'Throat' },
   8: { dx: 0, dy: 14, center: 'Throat' },
   33: { dx: 10, dy: 14, center: 'Throat' },
-  45: { dx: 15, dy: 6, center: 'Throat' },
-  12: { dx: 15, dy: -4, center: 'Throat' },
-  35: { dx: 15, dy: -14, center: 'Throat' }, 
-  // G Center: diamond 0,-25 25,0 0,25 -25,0
-  1: { dx: 0, dy: -19, center: 'G' },
+  35: { dx: 14, dy: -10, center: 'Throat' }, 
+  12: { dx: 14, dy: 0, center: 'Throat' }, 
+  45: { dx: 14, dy: 10, center: 'Throat' },
+  // G
+  1: { dx: 0, dy: -18, center: 'G' },
   7: { dx: -10, dy: -10, center: 'G' },
   13: { dx: 10, dy: -10, center: 'G' },
-  10: { dx: -16, dy: 0, center: 'G' },
-  25: { dx: 16, dy: 0, center: 'G' },
-  15: { dx: -10, dy: 13, center: 'G' },
+  10: { dx: -18, dy: 0, center: 'G' },
+  25: { dx: 18, dy: 0, center: 'G' },
+  15: { dx: -10, dy: 10, center: 'G' },
   46: { dx: 10, dy: 10, center: 'G' },
-  2: { dx: 0, dy: 16, center: 'G' },
-  // Heart: -15,-15 15,0 -15,15
+  2: { dx: 0, dy: 18, center: 'G' },
+  // Heart (Triangle pointing LEFT)
   21: { dx: -5, dy: -8, center: 'Heart' },
-  51: { dx: -8, dy: 0, center: 'Heart' },
+  51: { dx: -10, dy: 0, center: 'Heart' },
   26: { dx: -5, dy: 8, center: 'Heart' },
-  40: { dx: 5, dy: 0, center: 'Heart' },
-  // Spleen: -25,-25 25,0 -25,25
-  48: { dx: -16, dy: -16, center: 'Spleen' },
-  57: { dx: -6, dy: -8, center: 'Spleen' },
-  44: { dx: 2, dy: -2, center: 'Spleen' },
-  50: { dx: 20, dy: 0, center: 'Spleen' },
-  32: { dx: -2, dy: 10, center: 'Spleen' },
-  28: { dx: -10, dy: 15, center: 'Spleen' },
-  18: { dx: -16, dy: 18, center: 'Spleen' },
-  // Solar Plexus: 25,-25 -25,0 25,25
-  36: { dx: 16, dy: -16, center: 'Solar Plexus' },
-  22: { dx: 6, dy: -8, center: 'Solar Plexus' },
-  37: { dx: -2, dy: -2, center: 'Solar Plexus' },
-  6: { dx: -12, dy: 5, center: 'Solar Plexus' },
-  49: { dx: 2, dy: 10, center: 'Solar Plexus' },
-  55: { dx: 10, dy: 15, center: 'Solar Plexus' },
-  30: { dx: 16, dy: 18, center: 'Solar Plexus' },
-  // Sacral: rect -22, -22
-  5: { dx: -14, dy: -14, center: 'Sacral' },
+  40: { dx: 10, dy: 0, center: 'Heart' },
+  // Spleen (Triangle pointing RIGHT)
+  48: { dx: -10, dy: -15, center: 'Spleen' },
+  57: { dx: -2, dy: -8, center: 'Spleen' },
+  44: { dx: 6, dy: -2, center: 'Spleen' },
+  50: { dx: 18, dy: 0, center: 'Spleen' },
+  32: { dx: 6, dy: 6, center: 'Spleen' },
+  28: { dx: -2, dy: 12, center: 'Spleen' },
+  18: { dx: -10, dy: 18, center: 'Spleen' },
+  // Solar Plexus (Triangle pointing LEFT)
+  36: { dx: 10, dy: -15, center: 'Solar Plexus' },
+  22: { dx: 2, dy: -8, center: 'Solar Plexus' },
+  37: { dx: -6, dy: -2, center: 'Solar Plexus' },
+  6: { dx: -18, dy: 0, center: 'Solar Plexus' },
+  49: { dx: -6, dy: 6, center: 'Solar Plexus' },
+  55: { dx: 2, dy: 12, center: 'Solar Plexus' },
+  30: { dx: 10, dy: 18, center: 'Solar Plexus' },
+  // Sacral
+  5: { dx: -12, dy: -14, center: 'Sacral' },
   14: { dx: 0, dy: -14, center: 'Sacral' },
-  29: { dx: 14, dy: -14, center: 'Sacral' },
-  34: { dx: -14, dy: -4, center: 'Sacral' },
+  29: { dx: 12, dy: -14, center: 'Sacral' },
+  34: { dx: -14, dy: -6, center: 'Sacral' },
   27: { dx: -14, dy: 6, center: 'Sacral' },
   59: { dx: 14, dy: 0, center: 'Sacral' },
-  42: { dx: -14, dy: 14, center: 'Sacral' },
+  42: { dx: -12, dy: 14, center: 'Sacral' },
   3: { dx: 0, dy: 14, center: 'Sacral' },
-  9: { dx: 14, dy: 14, center: 'Sacral' },
-  // Root: rect -22, -22
-  53: { dx: -12, dy: -14, center: 'Root' },
+  9: { dx: 12, dy: 14, center: 'Sacral' },
+  // Root
+  53: { dx: -14, dy: -14, center: 'Root' },
   60: { dx: 0, dy: -14, center: 'Root' },
-  52: { dx: 12, dy: -14, center: 'Root' },
+  52: { dx: 14, dy: -14, center: 'Root' },
   54: { dx: -14, dy: -4, center: 'Root' },
   38: { dx: -14, dy: 4, center: 'Root' },
   58: { dx: -14, dy: 12, center: 'Root' },
@@ -186,18 +197,27 @@ export default function Bodygraph({
     <div className="flex flex-col items-center">
       <svg viewBox="0 0 500 620" className="w-full max-w-md">
         
-        {/* Silhouette Background */}
+        {/* Silhouette Background: Accurately wide enough to map the human dimensions */}
         <path 
-          d="M250 20 C220 20, 210 50, 210 70 C210 90, 220 100, 220 120 C220 140, 200 150, 180 180 C150 220, 100 280, 80 340 C60 400, 50 480, 70 550 C90 620, 200 600, 250 600 C300 600, 410 620, 430 550 C450 480, 440 400, 420 340 C400 280, 350 220, 320 180 C300 150, 280 140, 280 120 C280 100, 290 90, 290 70 C290 50, 280 20, 250 20 Z" 
-          fill="#334155" 
-          opacity="0.3" 
+          d="M 250 10 
+             C 210 10, 190 50, 190 100 
+             C 190 130, 210 150, 210 170 
+             C 210 190, 120 200, 90 260 
+             C 60 320, 40 400, 40 480 
+             C 40 580, 150 620, 250 620 
+             C 350 620, 460 580, 460 480 
+             C 460 400, 440 320, 410 260 
+             C 380 200, 290 190, 290 170 
+             C 290 150, 310 130, 310 100 
+             C 310 50, 290 10, 250 10 Z" 
+          fill="#1e293b" 
+          opacity="0.5" 
         />
 
         {/* 1. Underlying Channels Drawn Gate-to-Gate */}
         {CHANNELS.map(([gA, gB, cA, cB], i) => {
           const offA = GATE_OFFSETS[gA]
           const offB = GATE_OFFSETS[gB]
-          
           if (!offA || !offB) return null
 
           const x1 = C[cA].x + offA.dx
@@ -205,22 +225,22 @@ export default function Bodygraph({
           const x2 = C[cB].x + offB.dx
           const y2 = C[cB].y + offB.dy
 
-          // Slight bezier outward to be organic (using perpendicular offset)
-          const dx = x2 - x1
-          const dy = y2 - y1
-          const len = Math.sqrt(dx * dx + dy * dy)
-          
-          let nx = (-dy / len) * 12
-          let ny = (dx / len) * 12
-          
-          // Flatten integration channels directly
-          if (Math.abs(dx) > Math.abs(dy) * 2) {
-            nx = 0
-            ny = 0 // use mostly straight line for horizontal connections like 20-34
-          }
+          const channelKey = `${Math.min(gA, gB)}-${Math.max(gA, gB)}`
+          const bend = CHANNEL_BENDS[channelKey] || 0
 
-          const cx = (x1 + x2) / 2 + nx
-          const cy = (y1 + y2) / 2 + ny
+          let cx = (x1 + x2) / 2
+          let cy = (y1 + y2) / 2
+
+          // Use the mathematical normal vector to curve paths outwards perfectly
+          if (bend !== 0) {
+            const dx = x2 - x1
+            const dy = y2 - y1
+            const len = Math.sqrt(dx * dx + dy * dy)
+            const nx = -dy / len
+            const ny = dx / len
+            cx += nx * bend
+            cy += ny * bend
+          }
 
           const statusA = getGateStatus(gA, natalGates, transitGates, reinforcedGates)
           const statusB = getGateStatus(gB, natalGates, transitGates, reinforcedGates)
@@ -238,7 +258,7 @@ export default function Bodygraph({
 
           return (
             <g key={`ch-${i}`}>
-              <path d={fullPath} stroke="#475569" strokeWidth={6} fill="none" opacity={0.3} />
+              <path d={fullPath} stroke="#334155" strokeWidth={6} fill="none" opacity={0.4} />
               
               {statusA !== 'inactive' && (
                 <path d={pathA} stroke={gateColor(statusA, isCompleted)} strokeWidth={6} fill="none" />
@@ -256,23 +276,30 @@ export default function Bodygraph({
           const isTransit = newlyDefinedCenters.includes(name)
           const isNatal = natalCenters.includes(name)
           const fillColor = isDefined ? CENTER_COLORS[name] : '#475569'
-          const strokeColor = isTransit ? '#34d399' : (isNatal ? '#f1f5f9' : '#334155')
+          const strokeColor = isTransit ? '#34d399' : (isNatal ? '#f1f5f9' : '#1e293b')
           
           return (
             <g key={name} transform={`translate(${pos.x}, ${pos.y})`}>
               {name === 'Head' ? (
+                // Upward point triangle
                 <polygon points="0,-25 -30,20 30,20" fill={fillColor} stroke={strokeColor} strokeWidth={isDefined ? 2 : 1} rx={4} />
               ) : name === 'Ajna' ? (
+                // Downward point triangle
                 <polygon points="-30,-20 30,-20 0,25" fill={fillColor} stroke={strokeColor} strokeWidth={isDefined ? 2 : 1} />
               ) : name === 'G' ? (
+                // Diamond
                 <polygon points="0,-25 25,0 0,25 -25,0" fill={fillColor} stroke={strokeColor} strokeWidth={isDefined ? 2 : 1} />
               ) : name === 'Heart' ? (
-                <polygon points="-15,-15 15,0 -15,15" fill={fillColor} stroke={strokeColor} strokeWidth={isDefined ? 2 : 1} />
+                // Small Triangle pointing LEFT 
+                <polygon points="15,-15 -15,0 15,15" fill={fillColor} stroke={strokeColor} strokeWidth={isDefined ? 2 : 1} />
               ) : name === 'Spleen' ? (
+                // Triangle pointing RIGHT
                 <polygon points="-25,-25 25,0 -25,25" fill={fillColor} stroke={strokeColor} strokeWidth={isDefined ? 2 : 1} />
               ) : name === 'Solar Plexus' ? (
+                // Triangle pointing LEFT
                 <polygon points="25,-25 -25,0 25,25" fill={fillColor} stroke={strokeColor} strokeWidth={isDefined ? 2 : 1} />
               ) : (
+                // Squares (Throat, Sacral, Root)
                 <rect x={-22} y={-22} width={44} height={44} rx={6} fill={fillColor} stroke={strokeColor} strokeWidth={isDefined ? 2 : 1} />
               )}
             </g>
@@ -297,7 +324,7 @@ export default function Bodygraph({
               <text 
                 x={x} y={y + 0.5} 
                 textAnchor="middle" dominantBaseline="middle" 
-                fontSize={5.5} fontWeight={700} 
+                fontSize={6} fontWeight={700} 
                 fill="#0f172a"
               >
                 {gate}
@@ -326,3 +353,4 @@ export default function Bodygraph({
     </div>
   )
 }
+
