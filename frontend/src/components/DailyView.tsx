@@ -2,17 +2,63 @@ import { useState, useEffect } from 'react'
 import { api } from '../api/client'
 import Bodygraph from './Bodygraph'
 
+type ViewMode = 'overlay' | 'natal' | 'transit'
+
+// Planet display order matching HD convention
+const PLANET_ORDER = [
+  'Sun', 'Earth', 'Moon', 'North Node', 'South Node',
+  'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn',
+  'Uranus', 'Neptune', 'Pluto',
+]
+
+function PlanetColumn({ title, positions, side, color }: {
+  title: string
+  positions: { planet: string; gate: number; line: number }[]
+  side: 'left' | 'right'
+  color: string
+}) {
+  const sorted = PLANET_ORDER
+    .map(name => positions.find(p => p.planet === name))
+    .filter(Boolean) as typeof positions
+
+  return (
+    <div className="text-xs space-y-0.5 min-w-[90px]">
+      <p className={`font-semibold mb-1 ${color}`}>{title}</p>
+      {sorted.map(p => (
+        <div key={p.planet} className={`flex ${side === 'left' ? 'flex-row' : 'flex-row-reverse'} items-center gap-1`}>
+          <span className="text-slate-500 w-[18px] text-center shrink-0">{planetIcon(p.planet)}</span>
+          <span className="text-slate-300 font-mono">{p.gate}.{p.line}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function planetIcon(name: string): string {
+  const icons: Record<string, string> = {
+    Sun: '\u2609', Earth: '\u2295', Moon: '\u263D',
+    'North Node': '\u260A', 'South Node': '\u260B',
+    Mercury: '\u263F', Venus: '\u2640', Mars: '\u2642',
+    Jupiter: '\u2643', Saturn: '\u2644', Uranus: '\u2645',
+    Neptune: '\u2646', Pluto: '\u2647',
+  }
+  return icons[name] || '?'
+}
+
 export default function DailyView() {
   const [chart, setChart] = useState<any>(null)
+  const [transit, setTransit] = useState<any>(null)
   const [overlay, setOverlay] = useState<any>(null)
   const [interpretation, setInterpretation] = useState<any>(null)
   const [loadingInterp, setLoadingInterp] = useState(false)
   const [error, setError] = useState('')
+  const [view, setView] = useState<ViewMode>('overlay')
 
   useEffect(() => {
-    Promise.all([api.getChart(), api.getOverlay()])
-      .then(([c, o]) => {
+    Promise.all([api.getChart(), api.getCurrentTransit(), api.getOverlay()])
+      .then(([c, t, o]) => {
         setChart(c)
+        setTransit(t)
         setOverlay(o)
       })
       .catch(err => setError(err.message))
@@ -34,9 +80,51 @@ export default function DailyView() {
     return <div className="text-red-400 text-center py-8">{error}</div>
   }
 
-  if (!chart || !overlay) {
+  if (!chart || !overlay || !transit) {
     return <div className="text-slate-500 text-center py-8">Loading your transit weather...</div>
   }
+
+  // Compute what gates/centers to show based on view mode
+  const bodygraphProps = (() => {
+    if (view === 'natal') {
+      return {
+        natalGates: chart.defined_gates,
+        transitGates: [] as number[],
+        reinforcedGates: [] as number[],
+        completedChannels: [] as any[],
+        natalCenters: chart.defined_centers,
+        allDefinedCenters: chart.defined_centers,
+        newlyDefinedCenters: [] as string[],
+      }
+    }
+    if (view === 'transit') {
+      return {
+        natalGates: [] as number[],
+        transitGates: transit.active_gates,
+        reinforcedGates: [] as number[],
+        completedChannels: [] as any[],
+        natalCenters: [] as string[],
+        allDefinedCenters: transit.defined_centers,
+        newlyDefinedCenters: transit.defined_centers,
+      }
+    }
+    // overlay
+    return {
+      natalGates: chart.defined_gates,
+      transitGates: overlay.transit_gates,
+      reinforcedGates: overlay.reinforced_gates,
+      completedChannels: overlay.completed_channels,
+      natalCenters: chart.defined_centers,
+      allDefinedCenters: overlay.all_defined_centers,
+      newlyDefinedCenters: overlay.newly_defined_centers,
+    }
+  })()
+
+  // Combine personality + design for natal column
+  const natalPositions = [
+    ...chart.personality.map((p: any) => ({ ...p, side: 'personality' })),
+    ...chart.design.map((p: any) => ({ ...p, side: 'design' })),
+  ]
 
   return (
     <div className="space-y-6">
@@ -48,55 +136,99 @@ export default function DailyView() {
         </p>
       </div>
 
-      {/* Bodygraph */}
-      <Bodygraph
-        natalGates={chart.defined_gates}
-        transitGates={overlay.transit_gates}
-        reinforcedGates={overlay.reinforced_gates}
-        completedChannels={overlay.completed_channels}
-        natalCenters={chart.defined_centers}
-        allDefinedCenters={overlay.all_defined_centers}
-        newlyDefinedCenters={overlay.newly_defined_centers}
-      />
-
-      {/* Transit Highlights */}
-      <div className="bg-slate-900 rounded-xl p-5 border border-slate-800 space-y-4">
-        <h3 className="font-semibold text-slate-200">Transit Highlights</h3>
-
-        {overlay.completed_channels.length > 0 ? (
-          <div>
-            <p className="text-sm text-violet-400 font-medium mb-2">Channels Completed by Transit</p>
-            {overlay.completed_channels.map((ch: any, i: number) => (
-              <div key={i} className="bg-slate-800 rounded-lg p-3 mb-2">
-                <p className="text-sm font-medium text-slate-200">
-                  {ch.name} ({ch.gates[0]}-{ch.gates[1]})
-                </p>
-                <p className="text-xs text-slate-400">{ch.centers[0]} ↔ {ch.centers[1]}</p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-slate-500">No new channels completed by today's transits.</p>
-        )}
-
-        {overlay.newly_defined_centers.length > 0 && (
-          <div>
-            <p className="text-sm text-sky-400 font-medium mb-1">Temporarily Defined Centers</p>
-            <p className="text-sm text-slate-400">
-              {overlay.newly_defined_centers.join(', ')}
-            </p>
-          </div>
-        )}
-
-        {overlay.reinforced_gates.length > 0 && (
-          <div>
-            <p className="text-sm text-amber-400 font-medium mb-1">Reinforced Gates</p>
-            <p className="text-sm text-slate-400">
-              Gates {overlay.reinforced_gates.join(', ')} — transit energy amplifying your natal definition
-            </p>
-          </div>
-        )}
+      {/* View tabs */}
+      <div className="flex justify-center gap-1 bg-slate-900 rounded-lg p-1 max-w-xs mx-auto">
+        {(['natal', 'overlay', 'transit'] as ViewMode[]).map(mode => (
+          <button
+            key={mode}
+            onClick={() => setView(mode)}
+            className={`px-4 py-1.5 rounded-md text-xs font-medium transition capitalize ${
+              view === mode
+                ? 'bg-violet-600 text-white'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            {mode}
+          </button>
+        ))}
       </div>
+
+      {/* Main chart area: left column + bodygraph + right column */}
+      <div className="flex items-start justify-center gap-2">
+        {/* Left: Natal data (personality + design) */}
+        <div className={`transition-opacity ${view === 'transit' ? 'opacity-20' : 'opacity-100'}`}>
+          <div className="space-y-3">
+            <PlanetColumn
+              title="Personality"
+              positions={chart.personality}
+              side="left"
+              color="text-slate-300"
+            />
+            <PlanetColumn
+              title="Design"
+              positions={chart.design}
+              side="left"
+              color="text-red-400"
+            />
+          </div>
+        </div>
+
+        {/* Center: Bodygraph */}
+        <div className="flex-1 max-w-sm">
+          <Bodygraph {...bodygraphProps} />
+        </div>
+
+        {/* Right: Transit data */}
+        <div className={`transition-opacity ${view === 'natal' ? 'opacity-20' : 'opacity-100'}`}>
+          <PlanetColumn
+            title="Transit"
+            positions={transit.positions}
+            side="right"
+            color="text-sky-400"
+          />
+        </div>
+      </div>
+
+      {/* Transit Highlights (only in overlay mode) */}
+      {view === 'overlay' && (
+        <div className="bg-slate-900 rounded-xl p-5 border border-slate-800 space-y-4">
+          <h3 className="font-semibold text-slate-200">Transit Highlights</h3>
+
+          {overlay.completed_channels.length > 0 ? (
+            <div>
+              <p className="text-sm text-violet-400 font-medium mb-2">Channels Completed by Transit</p>
+              {overlay.completed_channels.map((ch: any, i: number) => (
+                <div key={i} className="bg-slate-800 rounded-lg p-3 mb-2">
+                  <p className="text-sm font-medium text-slate-200">
+                    {ch.name} ({ch.gates[0]}-{ch.gates[1]})
+                  </p>
+                  <p className="text-xs text-slate-400">{ch.centers[0]} ↔ {ch.centers[1]}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500">No new channels completed by today's transits.</p>
+          )}
+
+          {overlay.newly_defined_centers.length > 0 && (
+            <div>
+              <p className="text-sm text-sky-400 font-medium mb-1">Temporarily Defined Centers</p>
+              <p className="text-sm text-slate-400">
+                {overlay.newly_defined_centers.join(', ')}
+              </p>
+            </div>
+          )}
+
+          {overlay.reinforced_gates.length > 0 && (
+            <div>
+              <p className="text-sm text-amber-400 font-medium mb-1">Reinforced Gates</p>
+              <p className="text-sm text-slate-400">
+                Gates {overlay.reinforced_gates.join(', ')} — transit energy amplifying your natal definition
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* AI Interpretation */}
       <div className="bg-slate-900 rounded-xl p-5 border border-slate-800">
