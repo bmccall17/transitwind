@@ -11,6 +11,47 @@ const PLANET_ORDER = [
   'Uranus', 'Neptune', 'Pluto',
 ]
 
+function CombinedNatalColumn({ design, personality }: {
+  design: { planet: string; gate: number; line: number }[]
+  personality: { planet: string; gate: number; line: number }[]
+}) {
+  return (
+    <div className="text-xs space-y-1.5 min-w-[140px]">
+      {/* Header labels */}
+      <div className="flex justify-between font-semibold mb-2">
+        <span className="text-red-400">Design</span>
+        <span className="text-slate-300">Personality</span>
+      </div>
+      
+      {/* Planet rows */}
+      {PLANET_ORDER.map(name => {
+        const d = design.find(p => p.planet === name)
+        const p = personality.find(pl => pl.planet === name)
+        if (!d && !p) return null
+
+        return (
+          <div key={name} className="flex flex-row items-center justify-between">
+            {/* Design side (left, Red) */}
+            <span className="text-red-400 font-mono w-[35px] text-right">
+              {d ? `${d.gate}.${d.line}` : ''}
+            </span>
+            
+            {/* Planet symbol (center) */}
+            <span className="text-slate-500 w-[24px] text-center text-[13px] shrink-0">
+              {planetIcon(name)}
+            </span>
+            
+            {/* Personality side (right, Slate/Light) */}
+            <span className="text-slate-300 font-mono w-[35px] text-left">
+              {p ? `${p.gate}.${p.line}` : ''}
+            </span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 function PlanetColumn({ title, positions, side, color }: {
   title: string
   positions: { planet: string; gate: number; line: number }[]
@@ -22,12 +63,12 @@ function PlanetColumn({ title, positions, side, color }: {
     .filter(Boolean) as typeof positions
 
   return (
-    <div className="text-xs space-y-0.5 min-w-[90px]">
-      <p className={`font-semibold mb-1 ${color}`}>{title}</p>
+    <div className="text-xs space-y-1.5 min-w-[90px]">
+      <p className={`font-semibold mb-2 ${side === 'right' ? 'text-right' : 'text-left'} ${color}`}>{title}</p>
       {sorted.map(p => (
         <div key={p.planet} className={`flex ${side === 'left' ? 'flex-row' : 'flex-row-reverse'} items-center gap-1`}>
           <span className="text-slate-500 w-[18px] text-center shrink-0">{planetIcon(p.planet)}</span>
-          <span className="text-slate-300 font-mono">{p.gate}.{p.line}</span>
+          <span className="text-slate-300 font-mono">{p.gate}.${p.line}</span>
         </div>
       ))}
     </div>
@@ -120,12 +161,6 @@ export default function DailyView() {
     }
   })()
 
-  // Combine personality + design for natal column
-  const natalPositions = [
-    ...chart.personality.map((p: any) => ({ ...p, side: 'personality' })),
-    ...chart.design.map((p: any) => ({ ...p, side: 'design' })),
-  ]
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -156,21 +191,11 @@ export default function DailyView() {
       {/* Main chart area: left column + bodygraph + right column */}
       <div className="flex items-start justify-center gap-2">
         {/* Left: Natal data (personality + design) */}
-        <div className={`transition-opacity ${view === 'transit' ? 'opacity-20' : 'opacity-100'}`}>
-          <div className="space-y-3">
-            <PlanetColumn
-              title="Personality"
-              positions={chart.personality}
-              side="left"
-              color="text-slate-300"
-            />
-            <PlanetColumn
-              title="Design"
-              positions={chart.design}
-              side="left"
-              color="text-red-400"
-            />
-          </div>
+        <div className={`transition-opacity ${view === 'transit' ? 'opacity-20' : 'opacity-100'} pt-8`}>
+          <CombinedNatalColumn
+            design={chart.design}
+            personality={chart.personality}
+          />
         </div>
 
         {/* Center: Bodygraph */}

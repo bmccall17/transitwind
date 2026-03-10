@@ -1,7 +1,4 @@
-/**
- * SVG Bodygraph — renders the 9 centers, 36 channels with gate numbers,
- * and natal/transit overlay visualization matching standard HD bodygraph layout.
- */
+// No React import needed since NextJS/Vite handles it with React 17+
 
 interface Props {
   natalGates: number[]
@@ -13,21 +10,20 @@ interface Props {
   newlyDefinedCenters: string[]
 }
 
-// Center positions — standard HD bodygraph proportions
+// Center positions — correctly mapped to a central column with side centers
 const C: Record<string, { x: number; y: number }> = {
-  Head:          { x: 250, y: 36 },
-  Ajna:          { x: 250, y: 112 },
-  Throat:        { x: 250, y: 202 },
-  G:             { x: 250, y: 320 },
-  Heart:         { x: 148, y: 278 },
-  Spleen:        { x: 115, y: 420 },
-  'Solar Plexus':{ x: 385, y: 420 },
-  Sacral:        { x: 250, y: 448 },
-  Root:          { x: 250, y: 558 },
+  Head:          { x: 250, y: 60 },
+  Ajna:          { x: 250, y: 130 },
+  Throat:        { x: 250, y: 215 },
+  G:             { x: 250, y: 315 },
+  Heart:         { x: 325, y: 275 }, // Right side
+  Spleen:        { x: 130, y: 430 }, // Left side
+  'Solar Plexus':{ x: 370, y: 430 }, // Right side
+  Sacral:        { x: 250, y: 430 },
+  Root:          { x: 250, y: 535 },
 }
 
 // All 36 channels: [gateA, gateB, centerA, centerB]
-// Each channel draws a line between its two centers with gate numbers along it
 const CHANNELS: [number, number, string, string][] = [
   [64, 47, 'Head', 'Ajna'],
   [61, 24, 'Head', 'Ajna'],
@@ -58,7 +54,6 @@ const CHANNELS: [number, number, string, string][] = [
   [18, 58, 'Spleen', 'Root'],
   [28, 38, 'Spleen', 'Root'],
   [32, 54, 'Spleen', 'Root'],
-  [48, 16, 'Spleen', 'Throat'],  // duplicate path, skip in render
   [6, 59,  'Solar Plexus', 'Sacral'],
   [49, 19, 'Solar Plexus', 'Root'],
   [55, 39, 'Solar Plexus', 'Root'],
@@ -68,15 +63,13 @@ const CHANNELS: [number, number, string, string][] = [
   [9, 52,  'Sacral', 'Root'],
 ]
 
-// Deduplicate channels (some share the same center pair)
-// We need per-channel offsets so lines don't overlap
-function getChannelOffset(centerA: string, centerB: string, index: number, total: number): number {
+// Determine dynamic offset to separate parallel channels
+function getChannelOffset(index: number, total: number): number {
   if (total <= 1) return 0
-  const spread = Math.min(total * 6, 24)
+  const spread = Math.min(total * 8, 32)
   return (index - (total - 1) / 2) * (spread / total)
 }
 
-// Group channels by center pair for offset calculation
 function groupByCenterPair(channels: typeof CHANNELS) {
   const groups: Record<string, number[]> = {}
   channels.forEach((ch, i) => {
@@ -89,6 +82,19 @@ function groupByCenterPair(channels: typeof CHANNELS) {
 
 const centerPairGroups = groupByCenterPair(CHANNELS)
 
+// Specific Colors mapping directly to the mandala image provided by user
+const CENTER_COLORS: Record<string, string> = {
+  Head: '#facc15',          // Yellow
+  Ajna: '#84cc16',          // Green
+  Throat: '#b45309',        // Brown
+  G: '#facc15',             // Yellow
+  Heart: '#dc2626',         // Red
+  Spleen: '#b45309',        // Brown
+  'Solar Plexus': '#b45309',// Brown
+  Sacral: '#dc2626',        // Red
+  Root: '#b45309',          // Brown
+}
+
 function getGateStatus(gate: number, natalGates: number[], transitGates: number[], reinforcedGates: number[]): 'natal' | 'transit' | 'reinforced' | 'inactive' {
   if (reinforcedGates.includes(gate)) return 'reinforced'
   if (natalGates.includes(gate)) return 'natal'
@@ -96,26 +102,16 @@ function getGateStatus(gate: number, natalGates: number[], transitGates: number[
   return 'inactive'
 }
 
-function gateColor(status: string): string {
+function gateColor(status: string, isCompleted: boolean): string {
+  if (isCompleted && status === 'transit') return '#34d399' // Transit complete (Emerald)
+  if (isCompleted && status === 'natal') return '#3b82f6'   // Natal complete (Blue)
+  
   switch (status) {
-    case 'natal': return '#c084fc'      // violet-400
-    case 'transit': return '#38bdf8'     // sky-400
-    case 'reinforced': return '#fbbf24'  // amber-400
-    default: return '#334155'            // slate-700
+    case 'natal': return '#3b82f6'      // Blue
+    case 'transit': return '#34d399'     // Green
+    case 'reinforced': return '#fbbf24'  // Amber
+    default: return '#334155'            // Grey
   }
-}
-
-// Standard HD center colors when defined
-const CENTER_COLORS: Record<string, string> = {
-  Head: '#f5d742',
-  Ajna: '#4ade80',
-  Throat: '#a78bfa',
-  G: '#f59e0b',
-  Heart: '#ef4444',
-  Spleen: '#a78bfa',
-  'Solar Plexus': '#f97316',
-  Sacral: '#ef4444',
-  Root: '#f97316',
 }
 
 export default function Bodygraph({
@@ -127,24 +123,30 @@ export default function Bodygraph({
   allDefinedCenters,
   newlyDefinedCenters,
 }: Props) {
-  const allActive = new Set([...natalGates, ...transitGates])
   const completedGatePairs = new Set(completedChannels.map(c => `${c.gates[0]}-${c.gates[1]}`))
 
   return (
     <div className="flex flex-col items-center">
       <svg viewBox="0 0 500 620" className="w-full max-w-md">
+        
+        {/* Silhouette Background */}
+        <path 
+          d="M250 20 C220 20, 210 50, 210 70 C210 90, 220 100, 220 120 C220 140, 200 150, 180 180 C150 220, 100 280, 80 340 C60 400, 50 480, 70 550 C90 620, 200 600, 250 600 C300 600, 410 620, 430 550 C450 480, 440 400, 420 340 C400 280, 350 220, 320 180 C300 150, 280 140, 280 120 C280 100, 290 90, 290 70 C290 50, 280 20, 250 20 Z" 
+          fill="#334155" 
+          opacity="0.3" 
+        />
 
-        {/* Channel lines with gate numbers */}
+        {/* Channels */}
         {CHANNELS.map(([gA, gB, cA, cB], i) => {
           const pairKey = [cA, cB].sort().join('|')
           const group = centerPairGroups[pairKey]
           const idxInGroup = group.indexOf(i)
-          const offset = getChannelOffset(cA, cB, idxInGroup, group.length)
+          const offset = getChannelOffset(idxInGroup, group.length)
 
           const a = C[cA]
           const b = C[cB]
 
-          // Perpendicular offset
+          // Add curve control points to expand outward
           const dx = b.x - a.x
           const dy = b.y - a.y
           const len = Math.sqrt(dx * dx + dy * dy)
@@ -155,55 +157,54 @@ export default function Bodygraph({
           const y1 = a.y + ny
           const x2 = b.x + nx
           const y2 = b.y + ny
+          
+          // Mid curve point pushing outward
+          const cx = (a.x + b.x) / 2 + (nx * 1.5)
+          const cy = (a.y + b.y) / 2 + (ny * 1.5)
 
           const statusA = getGateStatus(gA, natalGates, transitGates, reinforcedGates)
           const statusB = getGateStatus(gB, natalGates, transitGates, reinforcedGates)
-          const isActive = statusA !== 'inactive' && statusB !== 'inactive'
-          const isNatalChannel = statusA === 'natal' && statusB === 'natal'
-          const channelKey = `${Math.min(gA, gB)}-${Math.max(gA, gB)}`
+          
+          // Check if completion is active
           const isCompleted = completedGatePairs.has(`${gA}-${gB}`) || completedGatePairs.has(`${gB}-${gA}`)
+          
+          // Bezier Half Evaluator function B(t) for quadratics
+          const getMidpoint = (t: number) => ({
+            x: (1-t)*(1-t)*x1 + 2*(1-t)*t*cx + t*t*x2,
+            y: (1-t)*(1-t)*y1 + 2*(1-t)*t*cy + t*t*y2
+          })
+          
+          const mid = getMidpoint(0.5)
 
-          // Channel line color
-          let strokeColor = '#1e293b'
-          if (isActive) {
-            if (isCompleted) strokeColor = '#38bdf8'
-            else if (isNatalChannel) strokeColor = '#c084fc'
-            else strokeColor = '#64748b'
-          }
+          // We draw the full inactive channel underneath first to ensure solid grey connection
+          const pathA = `M ${x1} ${y1} Q ${cx} ${cy} ${mid.x} ${mid.y}`
+          const pathB = `M ${x2} ${y2} Q ${cx} ${cy} ${mid.x} ${mid.y}`
 
-          // Gate label positions (1/4 and 3/4 along the line)
-          const gAx = x1 + (x2 - x1) * 0.22
-          const gAy = y1 + (y2 - y1) * 0.22
-          const gBx = x1 + (x2 - x1) * 0.78
-          const gBy = y1 + (y2 - y1) * 0.78
+          // Label coordinates (along the line, close to the center)
+          const labelA = getMidpoint(0.15)
+          const labelB = getMidpoint(0.85)
 
           return (
             <g key={`ch-${i}`}>
-              <line
-                x1={x1} y1={y1} x2={x2} y2={y2}
-                stroke={strokeColor}
-                strokeWidth={isActive ? 2 : 0.8}
-                strokeDasharray={isActive && !isNatalChannel && !isCompleted ? '4 2' : undefined}
-                opacity={isActive ? 0.9 : 0.2}
-              />
-              {/* Gate number near center A */}
-              <text
-                x={gAx} y={gAy}
-                textAnchor="middle" dominantBaseline="middle"
-                fontSize={7} fontWeight={500}
-                fill={gateColor(statusA)}
-                opacity={statusA === 'inactive' ? 0.3 : 1}
-              >
+              {/* Background inactive full line */}
+              <path d={`M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`} stroke="#475569" strokeWidth={5} fill="none" opacity={0.3} />
+              
+              {/* Active half paths */}
+              {statusA !== 'inactive' && (
+                <path d={pathA} stroke={gateColor(statusA, isCompleted)} strokeWidth={5} fill="none" />
+              )}
+              {statusB !== 'inactive' && (
+                <path d={pathB} stroke={gateColor(statusB, isCompleted)} strokeWidth={5} fill="none" />
+              )}
+
+              {/* Gate small circles and numbers */}
+              <circle cx={labelA.x} cy={labelA.y} r={7} fill={statusA !== 'inactive' ? '#f8fafc' : '#94a3b8'} stroke={statusA !== 'inactive' ? '#0f172a' : 'transparent'} strokeWidth={1} />
+              <text x={labelA.x} y={labelA.y + 0.5} textAnchor="middle" dominantBaseline="middle" fontSize={6.5} fontWeight={700} fill="#0f172a">
                 {gA}
               </text>
-              {/* Gate number near center B */}
-              <text
-                x={gBx} y={gBy}
-                textAnchor="middle" dominantBaseline="middle"
-                fontSize={7} fontWeight={500}
-                fill={gateColor(statusB)}
-                opacity={statusB === 'inactive' ? 0.3 : 1}
-              >
+              
+              <circle cx={labelB.x} cy={labelB.y} r={7} fill={statusB !== 'inactive' ? '#f8fafc' : '#94a3b8'} stroke={statusB !== 'inactive' ? '#0f172a' : 'transparent'} strokeWidth={1} />
+              <text x={labelB.x} y={labelB.y + 0.5} textAnchor="middle" dominantBaseline="middle" fontSize={6.5} fontWeight={700} fill="#0f172a">
                 {gB}
               </text>
             </g>
@@ -213,59 +214,35 @@ export default function Bodygraph({
         {/* Centers */}
         {Object.entries(C).map(([name, pos]) => {
           const isDefined = allDefinedCenters.includes(name)
-          const isNatal = natalCenters.includes(name)
           const isTransit = newlyDefinedCenters.includes(name)
-          const fillColor = isDefined ? (isNatal ? CENTER_COLORS[name] : '#38bdf8') : 'transparent'
-          const strokeColor = isDefined ? (isNatal ? CENTER_COLORS[name] : '#38bdf8') : '#334155'
-          const size = 26
-
+          const isNatal = natalCenters.includes(name)
+          const fillColor = isDefined ? CENTER_COLORS[name] : '#475569'
+          const strokeColor = isTransit ? '#34d399' : (isNatal ? '#f1f5f9' : '#334155')
+          
           return (
-            <g key={name}>
-              {/* Head + Ajna: triangles */}
+            <g key={name} transform={`translate(${pos.x}, ${pos.y})`}>
               {name === 'Head' ? (
-                <polygon
-                  points={`${pos.x},${pos.y - size} ${pos.x - size},${pos.y + size * 0.6} ${pos.x + size},${pos.y + size * 0.6}`}
-                  fill={fillColor} stroke={strokeColor} strokeWidth={2}
-                  strokeDasharray={isTransit ? '4 2' : undefined}
-                />
+                // Upward point triangle
+                <polygon points="0,-25 -30,20 30,20" fill={fillColor} stroke={strokeColor} strokeWidth={isDefined ? 2 : 1} rx={4} />
               ) : name === 'Ajna' ? (
-                <polygon
-                  points={`${pos.x - size},${pos.y - size * 0.6} ${pos.x + size},${pos.y - size * 0.6} ${pos.x},${pos.y + size}`}
-                  fill={fillColor} stroke={strokeColor} strokeWidth={2}
-                  strokeDasharray={isTransit ? '4 2' : undefined}
-                />
+                // Downward point triangle
+                <polygon points="-30,-20 30,-20 0,25" fill={fillColor} stroke={strokeColor} strokeWidth={isDefined ? 2 : 1} />
               ) : name === 'G' ? (
-                /* G center: diamond */
-                <polygon
-                  points={`${pos.x},${pos.y - size} ${pos.x + size},${pos.y} ${pos.x},${pos.y + size} ${pos.x - size},${pos.y}`}
-                  fill={fillColor} stroke={strokeColor} strokeWidth={2}
-                  strokeDasharray={isTransit ? '4 2' : undefined}
-                />
+                // Diamond
+                <polygon points="0,-25 25,0 0,25 -25,0" fill={fillColor} stroke={strokeColor} strokeWidth={isDefined ? 2 : 1} />
               ) : name === 'Heart' ? (
-                /* Heart: small triangle pointing right */
-                <polygon
-                  points={`${pos.x - 18},${pos.y - 18} ${pos.x + 18},${pos.y} ${pos.x - 18},${pos.y + 18}`}
-                  fill={fillColor} stroke={strokeColor} strokeWidth={2}
-                  strokeDasharray={isTransit ? '4 2' : undefined}
-                />
+                // Small Triangle pointing Right 
+                <polygon points="-15,-15 15,0 -15,15" fill={fillColor} stroke={strokeColor} strokeWidth={isDefined ? 2 : 1} />
+              ) : name === 'Spleen' ? (
+                // Triangle pointing Right
+                <polygon points="-25,-25 25,0 -25,25" fill={fillColor} stroke={strokeColor} strokeWidth={isDefined ? 2 : 1} />
+              ) : name === 'Solar Plexus' ? (
+                // Triangle pointing Left
+                <polygon points="25,-25 -25,0 25,25" fill={fillColor} stroke={strokeColor} strokeWidth={isDefined ? 2 : 1} />
               ) : (
-                /* All others: rounded rectangles */
-                <rect
-                  x={pos.x - size} y={pos.y - size * 0.7}
-                  width={size * 2} height={size * 1.4}
-                  rx={5}
-                  fill={fillColor} stroke={strokeColor} strokeWidth={2}
-                  strokeDasharray={isTransit ? '4 2' : undefined}
-                />
+                // Squares (Throat, Sacral, Root)
+                <rect x={-22} y={-22} width={44} height={44} rx={6} fill={fillColor} stroke={strokeColor} strokeWidth={isDefined ? 2 : 1} />
               )}
-              <text
-                x={pos.x} y={pos.y + 1}
-                textAnchor="middle" dominantBaseline="middle"
-                fontSize={9} fontWeight={700}
-                fill={isDefined ? '#0f172a' : '#64748b'}
-              >
-                {name === 'Solar Plexus' ? 'SP' : name}
-              </text>
             </g>
           )
         })}
@@ -274,16 +251,16 @@ export default function Bodygraph({
       {/* Legend */}
       <div className="flex flex-wrap gap-4 text-xs text-slate-500 mt-2 justify-center">
         <span className="flex items-center gap-1">
-          <span className="w-3 h-3 rounded-sm inline-block bg-violet-400" /> Natal
+          <span className="w-3 h-3 rounded-sm inline-block bg-blue-500" /> Natal Design
         </span>
         <span className="flex items-center gap-1">
-          <span className="w-3 h-3 rounded-sm inline-block bg-sky-400" /> Transit
+          <span className="w-3 h-3 rounded-sm inline-block bg-emerald-400" /> Transit Overlay
         </span>
         <span className="flex items-center gap-1">
           <span className="w-3 h-3 rounded-sm inline-block bg-amber-400" /> Reinforced
         </span>
         <span className="flex items-center gap-1">
-          <span className="w-3 h-3 rounded-sm inline-block bg-slate-700" /> Open
+          <span className="w-3 h-3 rounded-sm inline-block bg-slate-600" /> Open
         </span>
       </div>
     </div>
