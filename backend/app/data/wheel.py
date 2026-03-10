@@ -3,12 +3,13 @@ Human Design Mandala Wheel — gate order, channel definitions, center mappings.
 
 The HD wheel maps the 360° zodiac to 64 gates × 6 lines each.
 Each gate occupies 5.625° (360/64). Each line occupies 0.9375° (5.625/6).
-The wheel starts at Gate 41 at ~58.0° (2°00' Aquarius in traditional astrology).
+The wheel starts at Gate 41 at 302.0° ecliptic (2°00' Aquarius).
+This is the Rave New Year point — when the Sun enters Gate 41 (~Jan 22).
 
 Gate order follows the codon ring sequence around the mandala.
 """
 
-# Gate order around the wheel (starting from ~58° ecliptic longitude).
+# Gate order around the wheel (starting from 302° ecliptic longitude).
 # Index 0 = first gate encountered going clockwise from the start point.
 GATE_ORDER: list[int] = [
     41, 19, 13, 49, 30, 55, 37, 63,
@@ -22,7 +23,8 @@ GATE_ORDER: list[int] = [
 ]
 
 # Start longitude of Gate 41 (first gate in the sequence)
-WHEEL_START_LONGITUDE = 58.0  # degrees ecliptic
+# Verified against Jovian Archive — all 13 planets match to exact gate.line
+WHEEL_START_LONGITUDE = 302.0  # degrees ecliptic (2° Aquarius)
 
 DEGREES_PER_GATE = 360.0 / 64  # 5.625°
 DEGREES_PER_LINE = DEGREES_PER_GATE / 6  # 0.9375°
