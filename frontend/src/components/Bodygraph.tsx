@@ -1,4 +1,4 @@
-// No React import needed since NextJS/Vite handles it with React 17+
+import React, { useState, useRef, useEffect } from 'react'
 
 interface Props {
   natalGates: number[]
@@ -193,9 +193,133 @@ export default function Bodygraph({
 }: Props) {
   const completedGatePairs = new Set(completedChannels.map(c => `${c.gates[0]}-${c.gates[1]}`))
 
+  // Layout Editor State
+  const [centers, setCenters] = useState(C)
+  const [gates, setGates] = useState(GATE_OFFSETS)
+  const [bends, setBends] = useState(CHANNEL_BENDS)
+  
+  const [editMode, setEditMode] = useState(false)
+  const [selected, setSelected] = useState<{ type: 'center'|'gate'|'channel', id: string | number } | null>(null)
+  const svgRef = useRef<SVGSVGElement>(null)
+  const [dragStart, setDragStart] = useState<{ x: number, y: number, initialV: any } | null>(null)
+
+  // Nudging Logic
+  useEffect(() => {
+    if (!editMode || !selected) return;
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
+
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        e.preventDefault();
+      } else {
+        return;
+      }
+      
+      const step = e.shiftKey ? 5 : 1;
+      let dx = 0; let dy = 0;
+      if (e.key === 'ArrowUp') dy = -step;
+      if (e.key === 'ArrowDown') dy = step;
+      if (e.key === 'ArrowLeft') dx = -step;
+      if (e.key === 'ArrowRight') dx = step;
+
+      if (selected.type === 'center') {
+        setCenters((prev: any) => ({
+          ...prev,
+          [selected.id]: {
+            x: prev[selected.id as string].x + dx,
+            y: prev[selected.id as string].y + dy
+          }
+        }))
+      } else if (selected.type === 'gate') {
+        setGates((prev: any) => ({
+          ...prev,
+          [selected.id]: {
+            ...prev[selected.id as number],
+            dx: prev[selected.id as number].dx + dx,
+            dy: prev[selected.id as number].dy + dy
+          }
+        }))
+      } else if (selected.type === 'channel') {
+        const bendChange = e.key === 'ArrowUp' || e.key === 'ArrowRight' ? step : -step;
+        setBends((prev: any) => ({
+          ...prev,
+          [selected.id]: (prev[selected.id as string] || 0) + bendChange
+        }))
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [editMode, selected])
+
+  // Dragging Logic
+  const handlePointerDown = (e: React.PointerEvent, type: 'center'|'gate'|'channel', id: string | number) => {
+    if (!editMode) return;
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setSelected({ type, id });
+    
+    let initialV;
+    if (type === 'center') initialV = centers[id as string];
+    else if (type === 'gate') initialV = gates[id as number];
+    else if (type === 'channel') initialV = bends[id as string] || 0;
+    
+    setDragStart({ x: e.clientX, y: e.clientY, initialV });
+  }
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!editMode || !dragStart || !selected || !svgRef.current) return;
+    e.stopPropagation();
+    
+    const rect = svgRef.current.getBoundingClientRect();
+    const scale = 500 / rect.width; 
+    
+    const dx = (e.clientX - dragStart.x) * scale;
+    const dy = (e.clientY - dragStart.y) * scale;
+    
+    if (selected.type === 'center') {
+      setCenters((prev: any) => ({
+        ...prev,
+        [selected.id]: {
+          x: Math.round(dragStart.initialV.x + dx),
+          y: Math.round(dragStart.initialV.y + dy)
+        }
+      }))
+    } else if (selected.type === 'gate') {
+       setGates((prev: any) => ({
+        ...prev,
+        [selected.id]: {
+          ...prev[selected.id as number],
+          dx: Math.round(dragStart.initialV.dx + dx),
+          dy: Math.round(dragStart.initialV.dy + dy)
+        }
+      }))
+    } else if (selected.type === 'channel') {
+      setBends((prev: any) => ({
+        ...prev,
+        [selected.id]: Math.round(dragStart.initialV + dx + dy) 
+      }))
+    }
+  }
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (dragStart) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+      setDragStart(null);
+    }
+  }
+
   return (
-    <div className="flex flex-col items-center">
-      <svg viewBox="0 0 500 620" className="w-full max-w-md">
+    <div className="flex flex-col items-center relative">
+      <svg 
+        ref={svgRef}
+        viewBox="0 0 500 620" 
+        className="w-full max-w-md"
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerUp}
+      >
         
         {/* Silhouette Background: Accurately wide enough to map the human dimensions */}
         <path 
@@ -216,17 +340,17 @@ export default function Bodygraph({
 
         {/* 1. Underlying Channels Drawn Gate-to-Gate */}
         {CHANNELS.map(([gA, gB, cA, cB], i) => {
-          const offA = GATE_OFFSETS[gA]
-          const offB = GATE_OFFSETS[gB]
+          const offA = gates[gA]
+          const offB = gates[gB]
           if (!offA || !offB) return null
 
-          const x1 = C[cA].x + offA.dx
-          const y1 = C[cA].y + offA.dy
-          const x2 = C[cB].x + offB.dx
-          const y2 = C[cB].y + offB.dy
+          const x1 = centers[cA].x + offA.dx
+          const y1 = centers[cA].y + offA.dy
+          const x2 = centers[cB].x + offB.dx
+          const y2 = centers[cB].y + offB.dy
 
           const channelKey = `${Math.min(gA, gB)}-${Math.max(gA, gB)}`
-          const bend = CHANNEL_BENDS[channelKey] || 0
+          const bend = bends[channelKey] || 0
 
           let cx = (x1 + x2) / 2
           let cy = (y1 + y2) / 2
@@ -256,9 +380,13 @@ export default function Bodygraph({
           const pathB = `M ${x2} ${y2} Q ${cx} ${cy} ${mid.x} ${mid.y}`
           const fullPath = `M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`
 
+          const isSelected = selected?.type === 'channel' && selected?.id === channelKey;
+
           return (
             <g key={`ch-${i}`}>
-              <path d={fullPath} stroke="#334155" strokeWidth={6} fill="none" opacity={0.4} />
+              <path 
+                d={fullPath} stroke={isSelected ? "#ec4899" : "#334155"} strokeWidth={isSelected ? 8 : 6} fill="none" opacity={isSelected ? 0.8 : 0.4} 
+              />
               
               {statusA !== 'inactive' && (
                 <path d={pathA} stroke={gateColor(statusA, isCompleted)} strokeWidth={6} fill="none" />
@@ -266,20 +394,39 @@ export default function Bodygraph({
               {statusB !== 'inactive' && (
                 <path d={pathB} stroke={gateColor(statusB, isCompleted)} strokeWidth={6} fill="none" />
               )}
+
+              {/* Editor Bend Handle */}
+              {editMode && (
+                <circle 
+                  cx={cx} cy={cy} r={8} fill="#ec4899" opacity={0.8}
+                  onPointerDown={(e) => handlePointerDown(e, 'channel', channelKey)}
+                  style={{ cursor: 'pointer' }}
+                />
+              )}
             </g>
           )
         })}
 
         {/* 2. Geometric Centers Drawn ON TOP of Channels */}
-        {Object.entries(C).map(([name, pos]) => {
+        {Object.entries(centers).map(([name, pos]: [string, any]) => {
           const isDefined = allDefinedCenters.includes(name)
           const isTransit = newlyDefinedCenters.includes(name)
           const isNatal = natalCenters.includes(name)
           const fillColor = isDefined ? CENTER_COLORS[name] : '#475569'
           const strokeColor = isTransit ? '#34d399' : (isNatal ? '#f1f5f9' : '#1e293b')
           
+          const isSelected = selected?.type === 'center' && selected?.id === name;
+
           return (
-            <g key={name} transform={`translate(${pos.x}, ${pos.y})`}>
+            <g 
+              key={name} 
+              transform={`translate(${pos.x}, ${pos.y})`}
+              onPointerDown={(e) => handlePointerDown(e, 'center', name)}
+              style={editMode ? { cursor: 'move' } : {}}
+            >
+              {isSelected && (
+                <circle r={35} fill="rgba(236,72,153, 0.2)" stroke="#ec4899" strokeWidth={2} strokeDasharray="4 4" />
+              )}
               {name === 'Head' ? (
                 // Upward point triangle
                 <polygon points="0,-25 -30,20 30,20" fill={fillColor} stroke={strokeColor} strokeWidth={isDefined ? 2 : 1} rx={4} />
@@ -307,17 +454,26 @@ export default function Bodygraph({
         })}
 
         {/* 3. Gate Number Circles ON TOP of Centers */}
-        {Object.entries(GATE_OFFSETS).map(([gateStr, { dx, dy, center }]) => {
+        {Object.entries(gates).map(([gateStr, { dx, dy, center }]) => {
           const gate = parseInt(gateStr)
           const status = getGateStatus(gate, natalGates, transitGates, reinforcedGates)
-          const x = C[center].x + dx
-          const y = C[center].y + dy
+          const x = centers[center].x + dx
+          const y = centers[center].y + dy
+          
+          const isSelected = selected?.type === 'gate' && selected?.id === gate;
 
           return (
-            <g key={`gate-${gate}`}>
+            <g 
+              key={`gate-${gate}`}
+              onPointerDown={(e) => handlePointerDown(e, 'gate', gate)}
+              style={editMode ? { cursor: 'move' } : {}}
+            >
+              {isSelected && (
+                <circle cx={x} cy={y} r={10} fill="rgba(236,72,153, 0.4)" stroke="#ec4899" strokeWidth={2} strokeDasharray="2 2" />
+              )}
               <circle 
                 cx={x} cy={y} r={6.5} 
-                fill={status !== 'inactive' ? '#f8fafc' : '#64748b'} 
+                fill={status !== 'inactive' ? '#f8fafc' : (editMode ? '#94a3b8' : '#64748b')} 
                 stroke={status !== 'inactive' ? '#0f172a' : 'transparent'} 
                 strokeWidth={1} 
               />
@@ -335,6 +491,40 @@ export default function Bodygraph({
 
       </svg>
 
+      {/* Editor Control Panel */}
+      {editMode && (
+        <div className="fixed bottom-4 right-4 bg-slate-800 p-4 rounded-xl shadow-2xl border border-violet-500/50 text-xs text-slate-200 z-50 w-80">
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="font-bold text-base text-violet-400">Layout Editor</h3>
+            <button 
+              onClick={() => setEditMode(false)}
+              className="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-slate-300"
+            >
+              Close
+            </button>
+          </div>
+          <p className="mb-3 text-slate-400">Click any Center, Gate, or red Channel point to select it. Drag it with your mouse, or use Arrow keys to nudge (Shift+Arrow for medium adjustments).</p>
+          
+          <div className="bg-slate-900 p-2 rounded mb-4">
+            <span className="font-semibold text-slate-500">Selected: </span> 
+            <span className="text-white font-mono">{selected ? `${selected.type} ${selected.id}` : 'None (Click something)'}</span>
+          </div>
+          
+          <div className="flex flex-col gap-2">
+            <button 
+              onClick={() => {
+                const out = `const C = ${JSON.stringify(centers, null, 2)};\nconst GATE_OFFSETS = ${JSON.stringify(gates, null, 2)};\nconst CHANNEL_BENDS = ${JSON.stringify(bends, null, 2)};`;
+                navigator.clipboard.writeText(out);
+                alert("Copied config code to clipboard! Please paste this back to the AI.");
+              }}
+              className="bg-violet-600 hover:bg-violet-500 rounded py-2 text-white font-medium shadow-lg"
+            >
+              Copy Config to Clipboard
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Legend */}
       <div className="flex flex-wrap gap-4 text-xs text-slate-500 mt-2 justify-center">
         <span className="flex items-center gap-1">
@@ -350,7 +540,20 @@ export default function Bodygraph({
           <span className="w-3 h-3 rounded-sm inline-block bg-slate-600" /> Open
         </span>
       </div>
+
+      <div className="mt-6 flex justify-center">
+        <button 
+          onClick={() => setEditMode(!editMode)}
+          className={`text-xs px-4 py-2 rounded-lg border transition ${
+            editMode 
+              ? 'bg-violet-900/50 border-violet-500 text-violet-300' 
+              : 'bg-slate-800 hover:bg-slate-700 text-slate-400 border-slate-700'
+          }`}
+        >
+          {editMode ? 'Disable Layout Editor' : '⚡ Enable Layout Editor'}
+        </button>
+      </div>
+
     </div>
   )
 }
-
